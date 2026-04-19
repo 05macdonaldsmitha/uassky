@@ -144,7 +144,7 @@ aside {
 .lcheck { width: 13px; height: 13px; border-radius: 2px; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 8px; font-weight: bold; color: #000; transition: background .15s; }
 .ltog.on .lcheck { background: currentColor; }
 .ltog.on .lcheck::after { content: '✓'; }
-.ldot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
 .lname { font-size: 12px; font-weight: 600; letter-spacing: .3px; flex: 1; }
 .lsub  { font-family: var(--mono); font-size: 8px; color: var(--dim); }
 .searchbox { display: flex; align-items: center; gap: 7px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 0 9px; margin-top: 2px; }
@@ -275,19 +275,19 @@ aside {
     <div class="s-label">AIRSPACE LAYERS</div>
     <div class="layers">
       <div class="ltog on" style="color:#ff3b3b" data-layer="frz" data-zoom-cat="surface" data-zoom-hint="ALL ZOOM" onclick="toggleLayer('frz',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#ff3b3b"></div>
+        <div class="lcheck"></div>
         <div><div class="lname">Flight Restriction Zones</div><div class="lsub">Airports — ATC permission required</div></div>
       </div>
       <div class="ltog on" style="color:#ff6b35" data-layer="restricted" data-zoom-cat="surface" data-zoom-hint="ALL ZOOM" onclick="toggleLayer('restricted',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#ff6b35"></div>
+        <div class="lcheck"></div>
         <div><div class="lname">Restricted Areas (UAS)</div><div class="lsub">Military / NSA sites</div></div>
       </div>
       <div class="ltog on" style="color:#ffd700" data-layer="danger" data-zoom-cat="surface" data-zoom-hint="ALL ZOOM" onclick="toggleLayer('danger',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#ffd700"></div>
+        <div class="lcheck"></div>
         <div><div class="lname">Danger / MoD Ranges</div><div class="lsub">Artillery, training areas</div></div>
       </div>
       <div class="ltog on" style="color:#00e5ff" data-layer="notams" data-zoom-cat="always" data-zoom-hint="" onclick="toggleLayer('notams',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#00e5ff"></div>
+        <div class="lcheck"></div>
         <div><div class="lname">Live NOTAMs</div><div class="lsub">NATS PIB — auto-refreshes</div></div>
       </div>
     </div>
@@ -295,49 +295,48 @@ aside {
 
   <!-- GROUND HAZARDS -->
   <div class="s-section">
-    <div class="s-label">GROUND HAZARDS <span style="font-size:8px;color:var(--dim)">(VIEWPORT)</span></div>
+    <div class="s-label">GROUND HAZARDS <span style="font-size:8px;color:var(--dim)">VISIBLE ≤10NM / ≤3NM</span></div>
     <div class="layers">
-      <div class="ltog on" style="color:#ff9500" data-layer="powerlines" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('powerlines',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#ff9500"></div>
-        <div><div class="lname">Power Lines</div><div class="lsub">Major ≤10NM · Minor ≤3NM</div></div>
-      </div>
-      <div class="ltog on" style="color:#ff9500;opacity:0.6" data-layer="powerlines_minor" data-zoom-cat="vfine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('powerlines_minor',this)" hidden>
-      </div>
-      <div class="ltog on" style="color:#ffcc00" data-layer="substations" data-zoom-cat="medium" data-zoom-hint="ZOOM IN" onclick="toggleHazard('substations',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#ffcc00"></div>
-        <div><div class="lname">Power Stations &amp; Substations</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
-      </div>
-      <div class="ltog on" style="color:#b0f0ff" data-layer="railways" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('railways',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#b0f0ff"></div>
-        <div><div class="lname">Railways &amp; Tramways</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
-      </div>
-      <div class="ltog on" style="color:#a8a8ff" data-layer="roads" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('roads',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#a8a8ff"></div>
-        <div><div class="lname">Motorways &amp; Major Roads</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
-      </div>
-      <div class="ltog on" style="color:#88ff88" data-layer="schools" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('schools',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#88ff88"></div>
-        <div><div class="lname">Schools &amp; Colleges</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
-      </div>
-      <div class="ltog on" style="color:#cc88ff" data-layer="prisons" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('prisons',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#cc88ff"></div>
-        <div><div class="lname">Prisons &amp; Secure Sites</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
-      </div>
-      <div class="ltog on" style="color:#ff88cc" data-layer="hospitals" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('hospitals',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#ff88cc"></div>
-        <div><div class="lname">Hospitals</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
-      </div>
-      <div class="ltog on" style="color:#ffaa44" data-layer="turbines" data-zoom-cat="medium" data-zoom-hint="ZOOM IN" onclick="toggleHazard('turbines',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#ffaa44"></div>
-        <div><div class="lname">Wind Turbines &amp; Masts</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
-      </div>
-      <div class="ltog on" style="color:#ffe066" data-layer="solar" data-zoom-cat="medium" data-zoom-hint="ZOOM IN" onclick="toggleHazard('solar',this)">
+      <div class="ltog on" style="color:#b0f0ff" data-layer="railways" data-zoom-cat="large" data-zoom-hint="≤10NM" onclick="toggleHazard('railways',this)">
         <div class="lcheck"></div>
-        <div><div class="lname">Solar Farms</div><div class="lsub">Solar arrays &amp; generators</div></div>
+        <div><div class="lname">Railways &amp; Tramways</div><div class="lsub">≤10NM</div></div>
       </div>
-      <div class="ltog on" style="color:#39d98a" data-layer="sssi" data-zoom-cat="medium" data-zoom-hint="ZOOM IN" onclick="toggleHazard('sssi',this)">
-        <div class="lcheck"></div><div class="ldot" style="background:#39d98a"></div>
-        <div><div class="lname">SSSIs &amp; Nature Reserves</div><div class="lsub">Protected areas — visible ≤15NM</div></div>
+      <div class="ltog on" style="color:#a8a8ff" data-layer="roads" data-zoom-cat="large" data-zoom-hint="≤10NM" onclick="toggleHazard('roads',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Motorways &amp; Major Roads</div><div class="lsub">≤10NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ffcc00" data-layer="substations" data-zoom-cat="medium" data-zoom-hint="≤10NM" onclick="toggleHazard('substations',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Power Stations &amp; Substations</div><div class="lsub">≤10NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ffaa44" data-layer="turbines" data-zoom-cat="medium" data-zoom-hint="≤10NM" onclick="toggleHazard('turbines',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Wind Turbines &amp; Masts</div><div class="lsub">≤10NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ffe066" data-layer="solar" data-zoom-cat="medium" data-zoom-hint="≤10NM" onclick="toggleHazard('solar',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Solar Farms</div><div class="lsub">≤10NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#39d98a" data-layer="sssi" data-zoom-cat="medium" data-zoom-hint="≤10NM" onclick="toggleHazard('sssi',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">SSSIs &amp; Nature Reserves</div><div class="lsub">≤10NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ff9500" data-layer="powerlines" data-zoom-cat="fine" data-zoom-hint="≤3NM" onclick="toggleHazard('powerlines',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Powerlines</div><div class="lsub">Major ≤3NM · Minor ≤3NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ff9500" data-layer="powerlines_minor" data-zoom-cat="vfine" data-zoom-hint="≤3NM" onclick="toggleHazard('powerlines_minor',this)" hidden></div>
+      <div class="ltog on" style="color:#88ff88" data-layer="schools" data-zoom-cat="fine" data-zoom-hint="≤3NM" onclick="toggleHazard('schools',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Schools &amp; Colleges</div><div class="lsub">≤3NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ff88cc" data-layer="hospitals" data-zoom-cat="fine" data-zoom-hint="≤3NM" onclick="toggleHazard('hospitals',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Hospitals</div><div class="lsub">≤3NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#cc88ff" data-layer="prisons" data-zoom-cat="fine" data-zoom-hint="≤3NM" onclick="toggleHazard('prisons',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Prisons &amp; Secure Sites</div><div class="lsub">≤3NM</div></div>
       </div>
     </div>
   </div>
@@ -536,9 +535,9 @@ window.addEventListener('load', function initApp() {
     always:  () => true,
     surface: () => true,
     upper:   () => getMapWidthNM() >= 200,
-    large:   () => getMapWidthNM() <= 30,
-    medium:  () => getMapWidthNM() <= 15,
-    fine:    () => getMapWidthNM() <= 10,
+    large:   () => getMapWidthNM() <= 10,
+    medium:  () => getMapWidthNM() <= 10,
+    fine:    () => getMapWidthNM() <= 3,
     vfine:   () => getMapWidthNM() <= 3,
   };
   function isZoomVisible(cat) { return (ZOOM_RULES[cat] || (() => true))(); }
@@ -673,17 +672,22 @@ window.addEventListener('load', function initApp() {
   }
 
   // ── Tile-grid cache ─────────────────────────────────────────────────
-  // Hazard data is cached by 0.5° tile rather than exact viewport bounds.
-  // Tile ID: "layerName:row_col" where row=floor(lat/0.5), col=floor(lon/0.5)
-  // Once a tile is fetched in a session it is never re-fetched.
-  // On each viewport settle we work out which tiles intersect the view,
-  // fetch only the uncached ones (possibly batching multiple tiles into one
-  // Overpass query), then add their features to the layer group.
-  const TILE_DEG = 0.5; // degrees — ~33km × ~27km over the UK
+  // Tile size adapts to zoom: larger tiles at wide zoom (fewer queries),
+  // smaller tiles at fine zoom (better cache reuse on small pans).
+  // wide zoom  >10NM  → 1.0° tiles  (~70km × ~45km)
+  // medium zoom 3-10NM → 0.5° tiles  (~35km × ~22km)
+  // fine zoom  <3NM   → 0.25° tiles (~17km × ~11km)
   const tileCache = new Map(); // tileKey → true (fetched)
 
+  function getTileDeg() {
+    const nm = getMapWidthNM();
+    if (nm > 10) return 1.0;
+    if (nm > 3)  return 0.5;
+    return 0.25;
+  }
+
   function tilesForBounds(b) {
-    // Returns array of {row, col, south, west, north, east} covering the bounds
+    const TILE_DEG = getTileDeg();
     const tiles = [];
     const rowMin = Math.floor(b.getSouth() / TILE_DEG);
     const rowMax = Math.floor(b.getNorth() / TILE_DEG);
@@ -692,7 +696,7 @@ window.addEventListener('load', function initApp() {
     for (let r = rowMin; r <= rowMax; r++) {
       for (let c = colMin; c <= colMax; c++) {
         tiles.push({
-          row: r, col: c,
+          row: r, col: c, tileDeg: TILE_DEG,
           south: r * TILE_DEG,       west:  c * TILE_DEG,
           north: (r+1) * TILE_DEG,   east:  (c+1) * TILE_DEG,
         });
@@ -716,7 +720,7 @@ window.addEventListener('load', function initApp() {
     const tiles = tilesForBounds(b);
     const needed = []; // { tile, layers[] }
     for (const tile of tiles) {
-      const missingLayers = eligibleLayers.filter(name => !tileCache.has(`${name}:${tile.row}_${tile.col}`));
+      const missingLayers = eligibleLayers.filter(name => !tileCache.has(`${name}:${tile.tileDeg}_${tile.row}_${tile.col}`));
       if (missingLayers.length) needed.push({ tile, layers: missingLayers });
     }
     if (!needed.length) return;
@@ -743,7 +747,7 @@ window.addEventListener('load', function initApp() {
           const bstr = `${t.south.toFixed(3)},${t.west.toFixed(3)},${t.north.toFixed(3)},${t.east.toFixed(3)}`;
           return layers.map(name => HAZ[name].q(bstr));
         });
-        const fullQL = `[out:json][timeout:45];(${tileQLs.join('')});out geom;`;
+        const fullQL = `[out:json][timeout:25][maxsize:536870912];(${tileQLs.join('')});out geom;`;
 
         const data = await overpassQuery(fullQL);
 
@@ -753,7 +757,7 @@ window.addEventListener('load', function initApp() {
         // Mark all fetched tiles as cached before processing elements
         // (so a re-entrant call won't re-fetch while we're rendering)
         for (const t of batchTiles) {
-          for (const name of layers) tileCache.set(`${name}:${t.row}_${t.col}`, true);
+          for (const name of layers) tileCache.set(`${name}:${t.tileDeg}_${t.row}_${t.col}`, true);
         }
 
         // Ensure layer groups exist
