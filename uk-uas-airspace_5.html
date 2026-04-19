@@ -928,12 +928,21 @@ Source: OpenStreetMap contributors`;
     }
 
     try {
-      const zip  = await JSZip.loadAsync(buf);
-      const allFiles = Object.values(zip.files);
-      console.log('KML zip contents:', allFiles.map(f => f.name));
-      const kmlFile = allFiles.find(f => f.name.toLowerCase().endsWith('.kml') && !f.dir);
-      if (!kmlFile) throw new Error(`No KML file found in zip. Files: ${allFiles.map(f=>f.name).join(', ')}`);
+      const outerZip = await JSZip.loadAsync(buf);
+      const allFiles  = Object.values(outerZip.files);
+      console.log('NATS zip contents:', allFiles.map(f => f.name).join(', '));
+
+      // The zip contains a KMZ (which is itself a zip containing the KML)
+      const kmzFile = allFiles.find(f => f.name.toLowerCase().endsWith('.kmz') && !f.dir);
+      if (!kmzFile) throw new Error(`No KMZ file found. Files: ${allFiles.map(f=>f.name).join(', ')}`);
+
+      // Unzip the KMZ to get the KML inside
+      const kmzBuf  = await kmzFile.async('arraybuffer');
+      const innerZip = await JSZip.loadAsync(kmzBuf);
+      const kmlFile  = Object.values(innerZip.files).find(f => f.name.toLowerCase().endsWith('.kml') && !f.dir);
+      if (!kmlFile) throw new Error('No KML found inside KMZ');
       const kmlText = await kmlFile.async('string');
+      console.log(`KML extracted: ${kmlFile.name}, ${kmlText.length} chars`);
       parseNatsKml(kmlText);
       frzKmlLoaded = true;
       console.log('NATS FRZ KML loaded successfully');
