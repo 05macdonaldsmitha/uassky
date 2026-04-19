@@ -299,9 +299,11 @@ aside {
     <div class="layers">
       <div class="ltog on" style="color:#ff9500" data-layer="powerlines" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('powerlines',this)">
         <div class="lcheck"></div><div class="ldot" style="background:#ff9500"></div>
-        <div><div class="lname">Power Lines</div><div class="lsub">Fine infra — visible &lt;10NM</div></div>
+        <div><div class="lname">Power Lines</div><div class="lsub">Major ≤10NM · Minor ≤3NM</div></div>
       </div>
-      <div class="ltog on" style="color:#ffcc00" data-layer="substations" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('substations',this)">
+      <div class="ltog on" style="color:#ff9500;opacity:0.6" data-layer="powerlines_minor" data-zoom-cat="vfine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('powerlines_minor',this)" hidden>
+      </div>
+      <div class="ltog on" style="color:#ffcc00" data-layer="substations" data-zoom-cat="medium" data-zoom-hint="ZOOM IN" onclick="toggleHazard('substations',this)">
         <div class="lcheck"></div><div class="ldot" style="background:#ffcc00"></div>
         <div><div class="lname">Power Stations &amp; Substations</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
       </div>
@@ -313,25 +315,29 @@ aside {
         <div class="lcheck"></div><div class="ldot" style="background:#a8a8ff"></div>
         <div><div class="lname">Motorways &amp; Major Roads</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
       </div>
-      <div class="ltog on" style="color:#88ff88" data-layer="schools" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('schools',this)">
+      <div class="ltog on" style="color:#88ff88" data-layer="schools" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('schools',this)">
         <div class="lcheck"></div><div class="ldot" style="background:#88ff88"></div>
         <div><div class="lname">Schools &amp; Colleges</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
       </div>
-      <div class="ltog on" style="color:#cc88ff" data-layer="prisons" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('prisons',this)">
+      <div class="ltog on" style="color:#cc88ff" data-layer="prisons" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('prisons',this)">
         <div class="lcheck"></div><div class="ldot" style="background:#cc88ff"></div>
         <div><div class="lname">Prisons &amp; Secure Sites</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
       </div>
-      <div class="ltog on" style="color:#ff88cc" data-layer="hospitals" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('hospitals',this)">
+      <div class="ltog on" style="color:#ff88cc" data-layer="hospitals" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('hospitals',this)">
         <div class="lcheck"></div><div class="ldot" style="background:#ff88cc"></div>
         <div><div class="lname">Hospitals</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
       </div>
-      <div class="ltog on" style="color:#ffaa44" data-layer="turbines" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('turbines',this)">
+      <div class="ltog on" style="color:#ffaa44" data-layer="turbines" data-zoom-cat="medium" data-zoom-hint="ZOOM IN" onclick="toggleHazard('turbines',this)">
         <div class="lcheck"></div><div class="ldot" style="background:#ffaa44"></div>
         <div><div class="lname">Wind Turbines &amp; Masts</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
       </div>
-      <div class="ltog on" style="color:#ffe066" data-layer="solar" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('solar',this)">
+      <div class="ltog on" style="color:#ffe066" data-layer="solar" data-zoom-cat="medium" data-zoom-hint="ZOOM IN" onclick="toggleHazard('solar',this)">
         <div class="lcheck"></div>
         <div><div class="lname">Solar Farms</div><div class="lsub">Solar arrays &amp; generators</div></div>
+      </div>
+      <div class="ltog on" style="color:#39d98a" data-layer="sssi" data-zoom-cat="medium" data-zoom-hint="ZOOM IN" onclick="toggleHazard('sssi',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#39d98a"></div>
+        <div><div class="lname">SSSIs &amp; Nature Reserves</div><div class="lsub">Protected areas — visible ≤15NM</div></div>
       </div>
     </div>
   </div>
@@ -517,7 +523,7 @@ window.addEventListener('load', function initApp() {
   const HL = {};
   const layerToggleState = { frz:true, restricted:true, danger:true, notams:true };
   // All hazard layers on by default — matches the toggled-on buttons in HTML
-  const hazToggleState = { powerlines:true, substations:true, railways:true, roads:true, schools:true, prisons:true, hospitals:true, turbines:true, solar:true };
+  const hazToggleState = { powerlines:true, powerlines_minor:true, substations:true, railways:true, roads:true, schools:true, prisons:true, hospitals:true, turbines:true, solar:true, sssi:true };
   let hazFetchInFlight = 0;
   let _hazGeneration = 0; // increments on each fetchHazards call; stale results are discarded
   // Pre-create HL layer groups for all hazard types
@@ -531,7 +537,9 @@ window.addEventListener('load', function initApp() {
     surface: () => true,
     upper:   () => getMapWidthNM() >= 200,
     large:   () => getMapWidthNM() <= 30,
+    medium:  () => getMapWidthNM() <= 15,
     fine:    () => getMapWidthNM() <= 10,
+    vfine:   () => getMapWidthNM() <= 3,
   };
   function isZoomVisible(cat) { return (ZOOM_RULES[cat] || (() => true))(); }
 
@@ -573,7 +581,7 @@ window.addEventListener('load', function initApp() {
   // ═══════════════════════════════════════════════════════════════════
   const OVERPASS_ENDPOINTS = [
     'https://overpass.private.coffee/api/interpreter',
-    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
     'https://overpass.openstreetmap.ru/api/interpreter',
   ];
 
@@ -614,7 +622,9 @@ window.addEventListener('load', function initApp() {
 
   const HAZ = {
     powerlines:  { color:'#ff9500', w:1.8, dash:'6 3', type:'line',
-      q: b=>`way["power"="line"](${b});way["power"="minor_line"](${b});` },
+      q: b=>`way["power"="line"](${b});` },
+    powerlines_minor: { color:'#ff9500', w:1, dash:'3 4', type:'line',
+      q: b=>`way["power"="minor_line"](${b});` },
     substations: { color:'#ffcc00', type:'poly-or-point',
       label: t=>t.name||t.operator||(t.power==='plant'?'Power Station':'Substation'),
       q: b=>`node["power"="substation"](${b});node["power"="plant"](${b});way["power"="substation"](${b});way["power"="plant"](${b});` },
@@ -631,15 +641,21 @@ window.addEventListener('load', function initApp() {
     turbines:    { color:'#ffaa44', type:'poly-or-point',
       label: t=>t['generator:source']==='wind'||t['man_made']==='wind_turbine'?'Wind Turbine':t['man_made']==='mast'?'Mast':'Power Tower',
       q: b=>`node["generator:source"="wind"](${b});node["man_made"="wind_turbine"](${b});way["generator:source"="wind"](${b});way["man_made"="wind_turbine"](${b});node["man_made"="mast"](${b});node["power"="tower"](${b});` },
-    solar:       { color:'#ffe066', type:'poly-or-point', label: t=>t.name||'Solar Farm / Array',
+    sssi:        { color:'#39d98a', type:'poly-or-point', label: t=>t.name||'SSSI / Protected Area',
+      q: b=>`way["boundary"="protected_area"]["protect_class"="4"](${b});relation["boundary"="protected_area"]["protect_class"="4"](${b});way["designation"="sssi"](${b});way["designation"="national_nature_reserve"](${b});` },
+    sssi:        { color:'#39d98a', type:'poly-or-point', label: t=>t.name||'SSSI / Protected Area',
+      q: b=>`way["boundary"="protected_area"]["protect_class"="4"](${b});relation["boundary"="protected_area"]["protect_class"="4"](${b});way["designation"="sssi"](${b});way["designation"="national_nature_reserve"](${b});` },
+        solar:       { color:'#ffe066', type:'poly-or-point', label: t=>t.name||'Solar Farm / Array',
       q: b=>`way["power"="generator"]["generator:source"="solar"](${b});way["landuse"="industrial"]["plant:source"="solar"](${b});` },
   };
 
   function classifyEl(t) {
-    if (t.power==='line'||t.power==='minor_line') return 'powerlines';
+    if (t.power==='line') return 'powerlines';
+    if (t.power==='minor_line') return 'powerlines_minor';
     if (t.power==='substation'||t.power==='plant') return 'substations';
     if (t.power==='tower') return null; // power towers not useful as hazards at drone scale
     if (t['generator:source']==='solar'||t['plant:source']==='solar') return 'solar';
+    if (t.boundary==='protected_area'||t.designation==='sssi'||t.designation==='national_nature_reserve') return 'sssi';
     if (t['generator:source']==='wind'||t['man_made']==='wind_turbine') return 'turbines';
     if (t.railway==='rail'||t.railway==='light_rail'||t.railway==='subway') return 'railways';
     if (t.highway==='motorway'||t.highway==='trunk'||t.highway==='primary') return 'roads';
