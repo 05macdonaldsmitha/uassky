@@ -929,8 +929,10 @@ Source: OpenStreetMap contributors`;
 
     try {
       const zip  = await JSZip.loadAsync(buf);
-      const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-      if (!kmlFile) throw new Error('No KML file found in zip');
+      const allFiles = Object.values(zip.files);
+      console.log('KML zip contents:', allFiles.map(f => f.name));
+      const kmlFile = allFiles.find(f => f.name.toLowerCase().endsWith('.kml') && !f.dir);
+      if (!kmlFile) throw new Error(`No KML file found in zip. Files: ${allFiles.map(f=>f.name).join(', ')}`);
       const kmlText = await kmlFile.async('string');
       parseNatsKml(kmlText);
       frzKmlLoaded = true;
