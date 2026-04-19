@@ -325,7 +325,6 @@ aside {
         <div class="lcheck"></div>
         <div><div class="lname">Powerlines</div><div class="lsub">Major ≤3NM · Minor ≤3NM</div></div>
       </div>
-      <div class="ltog on" style="color:#ff9500" data-layer="powerlines_minor" data-zoom-cat="vfine" data-zoom-hint="≤3NM" onclick="toggleHazard('powerlines_minor',this)" hidden></div>
       <div class="ltog on" style="color:#88ff88" data-layer="schools" data-zoom-cat="fine" data-zoom-hint="≤3NM" onclick="toggleHazard('schools',this)">
         <div class="lcheck"></div>
         <div><div class="lname">Schools &amp; Colleges</div><div class="lsub">≤3NM</div></div>
@@ -563,6 +562,12 @@ window.addEventListener('load', function initApp() {
   window.toggleLayer = function(name, el) {
     el.classList.toggle('on');
     layerToggleState[name] = el.classList.contains('on');
+    // frzKmlLayer is separate from AL — toggle it alongside frz
+    if (name === 'frz') {
+      const on = el.classList.contains('on');
+      on ? (!map.hasLayer(frzKmlLayer) && map.addLayer(frzKmlLayer))
+         : (map.hasLayer(frzKmlLayer) && map.removeLayer(frzKmlLayer));
+    }
     checkZoomVisibility();
   };
 
