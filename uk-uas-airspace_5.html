@@ -1000,12 +1000,16 @@ Source: OpenStreetMap contributors`;
       ZONE_DATA[type].forEach(([name,lat,lng,r],idx) => {
         const key = `${type}-${idx}`;
         const inView = bounds.contains(L.latLng(lat,lng));
+
+        // Once KML loads, remove any existing FRZ circles from map and skip
+        if (type === 'frz' && frzKmlLoaded) {
+          if (zoneObjs[key] && AL[type].hasLayer(zoneObjs[key])) AL[type].removeLayer(zoneObjs[key]);
+          return;
+        }
+
         if (inView) {
           if (!zoneObjs[key]) {
             const s = ZONE_STYLE[type];
-            // FRZ circles are shown faintly as fallback until KML loads, then stay as guide
-            // Hide FRZ circles entirely once KML polygons are loaded
-            if (type === 'frz' && frzKmlLoaded) return;
             zoneObjs[key] = L.circle([lat,lng],{radius:r,color:s.color,weight:s.weight,fillColor:s.fillColor,fillOpacity:s.fillOpacity,dashArray:s.dashArray})
               .bindPopup(popup(`${type.toUpperCase()}: ${name}`, ZONE_DESC[type](name,r)));
           }
