@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UAS Sky UK — Drone Airspace Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root {
+  --bg: #0a0d0f;
+  --surface: #111518;
+  --surface2: #181d22;
+  --border: #1e2830;
+  --accent: #00e5ff;
+  --accent2: #ff6b35;
+  --warn: #ffd700;
+  --danger: #ff3b3b;
+  --safe: #39d98a;
+  --text: #c8d8e8;
+  --dim: #5a7080;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Barlow Condensed', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  display: grid;
+  grid-template-rows: 52px 1fr;
+  grid-template-columns: 340px 1fr;
+}
+
+/* ── HEADER ─────────────────────────────────────────────────────────────── */
+header {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+}
+.logo-svg { width: 26px; height: 26px; flex-shrink: 0; }
+h1 { font-family: var(--sans); font-weight: 700; font-size: 17px; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; white-space: nowrap; }
+h1 span { color: var(--dim); font-weight: 300; }
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.chip { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; padding: 3px 7px; border-radius: 2px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.chip.green  { background: rgba(57,217,138,.1);  border: 1px solid rgba(57,217,138,.3); color: var(--safe); }
+.chip.yellow { background: rgba(255,215,0,.1);   border: 1px solid rgba(255,215,0,.3);  color: var(--warn); }
+.chip.red    { background: rgba(255,59,59,.1);   border: 1px solid rgba(255,59,59,.3);  color: var(--danger); }
+.chip .dot   { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+#clock { font-family: var(--mono); font-size: 10px; color: var(--dim); letter-spacing: 1px; white-space: nowrap; }
+
+/* Width readout — clickable to cycle units */
+#width-readout {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: 2px;
+  background: var(--surface2);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color .15s;
+  min-width: 80px;
+  text-align: center;
+}
+#width-readout:hover { border-color: var(--accent); }
+#width-readout title { display: none; }
+
+/* ── SIDEBAR ────────────────────────────────────────────────────────────── */
+aside {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+.s-section { padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.s-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--dim); text-transform: uppercase; margin-bottom: 7px; display: flex; justify-content: space-between; align-items: center; }
+.s-count { background: var(--surface2); border: 1px solid var(--border); padding: 1px 6px; border-radius: 2px; font-size: 10px; color: var(--accent); }
+
+/* Location search */
+.loc-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 8px;
+  transition: border-color .15s;
+}
+.loc-search:focus-within { border-color: var(--accent); }
+.loc-search input {
+  flex: 1; background: none; border: none; outline: none;
+  color: var(--text); font-family: var(--mono); font-size: 11px;
+  padding: 7px 0; letter-spacing: .5px;
+}
+.loc-search input::placeholder { color: var(--dim); }
+.loc-search button {
+  background: none; border: none; color: var(--dim);
+  cursor: pointer; font-size: 13px; padding: 0; line-height: 1;
+  transition: color .15s;
+}
+.loc-search button:hover { color: var(--accent); }
+.loc-results {
+  margin-top: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  display: none;
+}
+.loc-result-item {
+  padding: 6px 9px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.4;
+  transition: background .1s;
+}
+.loc-result-item:last-child { border-bottom: none; }
+.loc-result-item:hover { background: var(--border); color: var(--accent); }
+
+.layers { display: flex; flex-direction: column; gap: 4px; }
+.ltog { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 3px; cursor: pointer; border: 1px solid transparent; background: var(--surface2); user-select: none; transition: border-color .15s; position: relative; }
+.ltog:hover { border-color: var(--border); }
+.ltog.on { border-color: rgba(0,229,255,.15); background: rgba(0,229,255,.04); }
+.ltog.zoom-hidden { opacity: 0.38; }
+.ltog.zoom-hidden::after { content: attr(data-zoom-hint); position: absolute; right: 8px; font-family: var(--mono); font-size: 7px; color: var(--dim); letter-spacing: 0.5px; }
+.lcheck { width: 13px; height: 13px; border-radius: 2px; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 8px; font-weight: bold; color: #000; transition: background .15s; }
+.ltog.on .lcheck { background: currentColor; }
+.ltog.on .lcheck::after { content: '✓'; }
+.ldot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.lname { font-size: 12px; font-weight: 600; letter-spacing: .3px; flex: 1; }
+.lsub  { font-family: var(--mono); font-size: 8px; color: var(--dim); }
+.searchbox { display: flex; align-items: center; gap: 7px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; padding: 0 9px; margin-top: 2px; }
+.searchbox input { flex: 1; background: none; border: none; outline: none; color: var(--text); font-family: var(--mono); font-size: 11px; padding: 6px 0; letter-spacing: .5px; }
+.searchbox input::placeholder { color: var(--dim); }
+.nlist { flex: 1; overflow-y: auto; min-height: 0; }
+.nlist::-webkit-scrollbar { width: 3px; }
+.nlist::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.nitem { padding: 8px 12px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .1s; border-left: 2px solid transparent; }
+.nitem:hover { background: var(--surface2); }
+.nitem.sel { background: rgba(0,229,255,.05); border-left-color: var(--accent); }
+.nid  { font-family: var(--mono); font-size: 10px; color: var(--accent); margin-bottom: 2px; letter-spacing: 1px; }
+.nsum { font-size: 12px; color: var(--text); line-height: 1.4; margin-bottom: 3px; }
+.ndesc { font-size: 11px; color: var(--accent); opacity: 0.85; margin-bottom: 3px; letter-spacing: 0.3px; }
+.nmeta { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+.nbadge { display: inline-block; font-family: var(--mono); font-size: 8px; letter-spacing: 1px; padding: 1px 4px; border-radius: 1px; margin-right: 3px; text-transform: uppercase; }
+.b-uas    { background: rgba(0,229,255,.15);   color: var(--accent);  border: 1px solid rgba(0,229,255,.25); }
+.b-tda    { background: rgba(255,107,53,.15);  color: var(--accent2); border: 1px solid rgba(255,107,53,.25); }
+.b-danger { background: rgba(255,59,59,.15);   color: var(--danger);  border: 1px solid rgba(255,59,59,.25); }
+.b-warn   { background: rgba(255,215,0,.15);   color: var(--warn);    border: 1px solid rgba(255,215,0,.25); }
+.empty { padding: 18px; text-align: center; color: var(--dim); font-family: var(--mono); font-size: 10px; letter-spacing: 1px; line-height: 1.8; }
+.disclaimer { padding: 8px 12px; background: rgba(255,215,0,.04); border-top: 1px solid rgba(255,215,0,.12); flex-shrink: 0; }
+.disclaimer p { font-family: var(--mono); font-size: 8px; color: var(--warn); line-height: 1.6; opacity: .85; }
+.dlink { font-family: var(--mono); font-size: 8px; color: var(--dim); text-decoration: none; }
+.dlink:hover { color: var(--accent); }
+
+/* ── MAP ────────────────────────────────────────────────────────────────── */
+#map { position: relative; background: var(--bg); }
+
+/* Tile switcher — top left of map */
+.tile-switcher {
+  position: absolute; top: 10px; left: 10px; z-index: 1000;
+  display: flex; gap: 3px;
+  background: rgba(10,13,15,.85); border: 1px solid var(--border);
+  border-radius: 3px; padding: 4px; backdrop-filter: blur(6px);
+}
+.tbtn {
+  font-family: var(--mono); font-size: 8px; letter-spacing: 1px;
+  padding: 4px 7px; border-radius: 2px; cursor: pointer;
+  border: 1px solid transparent; background: transparent;
+  color: var(--dim); text-transform: uppercase; transition: all .15s; white-space: nowrap;
+}
+.tbtn:hover { color: var(--text); border-color: var(--border); }
+.tbtn.active { background: rgba(0,229,255,.12); border-color: rgba(0,229,255,.3); color: var(--accent); }
+
+/* Labels toggle button — sits next to tile switcher */
+.labels-btn {
+  position: absolute; top: 10px; z-index: 1000;
+  font-family: var(--mono); font-size: 8px; letter-spacing: 1px;
+  padding: 4px 9px; border-radius: 2px; cursor: pointer;
+  border: 1px solid var(--border); background: rgba(10,13,15,.85);
+  color: var(--dim); text-transform: uppercase; transition: all .15s;
+  backdrop-filter: blur(6px); white-space: nowrap;
+}
+.labels-btn:hover { color: var(--text); }
+.labels-btn.on { background: rgba(0,229,255,.12); border-color: rgba(0,229,255,.3); color: var(--accent); }
+
+/* Loading */
+.loading { position: absolute; inset: 0; background: rgba(10,13,15,.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; gap: 12px; transition: opacity .4s; }
+.loading.gone { opacity: 0; pointer-events: none; }
+.spinner { width: 32px; height: 32px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ltxt  { font-family: var(--mono); font-size: 10px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+.lsub2 { font-family: var(--mono); font-size: 9px; color: var(--dim); letter-spacing: 1px; }
+
+/* Map buttons — bottom right */
+.mapbtns { position: absolute; bottom: 20px; right: 10px; z-index: 1000; display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+.mbtn { background: rgba(10,13,15,.85); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 9px; letter-spacing: 1px; padding: 6px 10px; cursor: pointer; border-radius: 2px; transition: all .15s; text-transform: uppercase; backdrop-filter: blur(6px); }
+.mbtn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Haz loading indicator — top right */
+.haz-indicator { position: absolute; top: 10px; right: 10px; z-index: 1000; font-family: var(--mono); font-size: 9px; color: var(--warn); background: rgba(10,13,15,.85); border: 1px solid rgba(255,215,0,.2); padding: 5px 10px; border-radius: 2px; letter-spacing: 1px; display: none; backdrop-filter: blur(4px); }
+
+/* Leaflet overrides */
+.leaflet-control-zoom { border: 1px solid var(--border)!important; border-radius: 3px!important; }
+.leaflet-control-zoom a { background: rgba(10,13,15,.85)!important; color: var(--text)!important; border-color: var(--border)!important; }
+.leaflet-control-zoom a:hover { color: var(--accent)!important; }
+.leaflet-popup-content-wrapper { background: var(--surface)!important; border: 1px solid var(--accent)!important; border-radius: 3px!important; color: var(--text)!important; box-shadow: 0 4px 20px rgba(0,0,0,.6)!important; }
+.leaflet-popup-tip { background: var(--surface)!important; }
+.leaflet-popup-content { font-family: var(--mono)!important; font-size: 10px!important; line-height: 1.6!important; margin: 10px 12px!important; }
+.leaflet-attribution-flag { display: none!important; }
+.leaflet-control-attribution { background: rgba(10,13,15,.7)!important; color: var(--dim)!important; font-size: 8px!important; }
+.leaflet-control-attribution a { color: var(--dim)!important; }
+.pop-title { color: var(--accent); font-size: 11px; font-weight: bold; margin-bottom: 5px; letter-spacing: 1px; }
+.pop-body  { color: var(--text); white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow-y: auto; }
+.pop-body::-webkit-scrollbar { width: 3px; }
+.pop-body::-webkit-scrollbar-thumb { background: var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <svg class="logo-svg" viewBox="0 0 26 26" fill="none">
+    <circle cx="13" cy="13" r="8" stroke="#00e5ff" stroke-width="1.4" stroke-dasharray="3 2"/>
+    <circle cx="13" cy="13" r="3.5" stroke="#00e5ff" stroke-width="1.4"/>
+    <circle cx="13" cy="13" r="1.2" fill="#00e5ff"/>
+    <line x1="13" y1="2"  x2="13" y2="5.5"  stroke="#00e5ff" stroke-width="1.4"/>
+    <line x1="13" y1="20.5" x2="13" y2="24" stroke="#00e5ff" stroke-width="1.4"/>
+    <line x1="2"  y1="13" x2="5.5"  y2="13" stroke="#00e5ff" stroke-width="1.4"/>
+    <line x1="20.5" y1="13" x2="24" y2="13" stroke="#00e5ff" stroke-width="1.4"/>
+  </svg>
+  <h1>UAS<span>SKY</span> UK</h1>
+  <div class="hdr-right">
+    <!-- S1-ref: unit-cycling width readout — click to cycle NM / km / mi -->
+    <div id="width-readout" onclick="cycleUnit()" title="Click to change units">– NM</div>
+    <div class="chip yellow" id="notam-chip"><span class="dot"></span><span id="notam-txt">LOADING NOTAMs</span></div>
+    <div class="chip green"><span class="dot"></span><span>ZONES ACTIVE</span></div>
+    <div id="clock"></div>
+  </div>
+</header>
+
+<aside>
+  <!-- LOCATION SEARCH -->
+  <div class="s-section">
+    <div class="s-label">LOCATION SEARCH</div>
+    <div class="loc-search">
+      <span style="color:var(--dim)">⌕</span>
+      <input id="loc-input" type="text" placeholder="Search place, postcode, ICAO…"
+             onkeydown="if(event.key==='Enter')searchLocation()"
+             oninput="onLocInput(this.value)">
+      <button onclick="searchLocation()" title="Search">→</button>
+    </div>
+    <div class="loc-results" id="loc-results"></div>
+  </div>
+
+  <!-- AIRSPACE LAYERS -->
+  <div class="s-section">
+    <div class="s-label">AIRSPACE LAYERS</div>
+    <div class="layers">
+      <div class="ltog on" style="color:#ff3b3b" data-layer="frz" data-zoom-cat="surface" data-zoom-hint="ALL ZOOM" onclick="toggleLayer('frz',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#ff3b3b"></div>
+        <div><div class="lname">Flight Restriction Zones</div><div class="lsub">Airports — ATC permission required</div></div>
+      </div>
+      <div class="ltog on" style="color:#ff6b35" data-layer="restricted" data-zoom-cat="surface" data-zoom-hint="ALL ZOOM" onclick="toggleLayer('restricted',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#ff6b35"></div>
+        <div><div class="lname">Restricted Areas (UAS)</div><div class="lsub">Military / NSA sites</div></div>
+      </div>
+      <div class="ltog on" style="color:#ffd700" data-layer="danger" data-zoom-cat="surface" data-zoom-hint="ALL ZOOM" onclick="toggleLayer('danger',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#ffd700"></div>
+        <div><div class="lname">Danger / MoD Ranges</div><div class="lsub">Artillery, training areas</div></div>
+      </div>
+      <div class="ltog on" style="color:#00e5ff" data-layer="notams" data-zoom-cat="always" data-zoom-hint="" onclick="toggleLayer('notams',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#00e5ff"></div>
+        <div><div class="lname">Live NOTAMs</div><div class="lsub">NATS PIB — auto-refreshes</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROUND HAZARDS -->
+  <div class="s-section">
+    <div class="s-label">GROUND HAZARDS <span style="font-size:8px;color:var(--dim)">(VIEWPORT)</span></div>
+    <div class="layers">
+      <div class="ltog on" style="color:#ff9500" data-layer="powerlines" data-zoom-cat="fine" data-zoom-hint="ZOOM IN" onclick="toggleHazard('powerlines',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#ff9500"></div>
+        <div><div class="lname">Power Lines</div><div class="lsub">Fine infra — visible &lt;10NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ffcc00" data-layer="substations" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('substations',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#ffcc00"></div>
+        <div><div class="lname">Power Stations &amp; Substations</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#b0f0ff" data-layer="railways" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('railways',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#b0f0ff"></div>
+        <div><div class="lname">Railways &amp; Tramways</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#a8a8ff" data-layer="roads" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('roads',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#a8a8ff"></div>
+        <div><div class="lname">Motorways &amp; Major Roads</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#88ff88" data-layer="schools" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('schools',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#88ff88"></div>
+        <div><div class="lname">Schools &amp; Colleges</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#cc88ff" data-layer="prisons" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('prisons',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#cc88ff"></div>
+        <div><div class="lname">Prisons &amp; Secure Sites</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ff88cc" data-layer="hospitals" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('hospitals',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#ff88cc"></div>
+        <div><div class="lname">Hospitals</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ffaa44" data-layer="turbines" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('turbines',this)">
+        <div class="lcheck"></div><div class="ldot" style="background:#ffaa44"></div>
+        <div><div class="lname">Wind Turbines &amp; Masts</div><div class="lsub">Large infra — visible &lt;30NM</div></div>
+      </div>
+      <div class="ltog on" style="color:#ffe066" data-layer="solar" data-zoom-cat="large" data-zoom-hint="ZOOM IN" onclick="toggleHazard('solar',this)">
+        <div class="lcheck"></div>
+        <div><div class="lname">Solar Farms</div><div class="lsub">Solar arrays &amp; generators</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTAM LIST -->
+  <div class="s-section">
+    <div class="s-label">LIVE NOTAMs <span class="s-count" id="notam-count">–</span></div>
+    <div class="searchbox">
+      <span style="color:var(--dim);font-size:13px">⌕</span>
+      <input id="notam-search" type="text" placeholder="Search ID, keyword, location…" oninput="filterNotams(this.value)">
+    </div>
+  </div>
+  <div class="nlist" id="nlist"><div class="empty">FETCHING LIVE NOTAM DATA…</div></div>
+
+  <div class="disclaimer">
+    <p>⚠ INFORMATIONAL ONLY — NOT AN OFFICIAL BRIEFING<br>
+    Always obtain a NATS AIS PIB before flight.<br>
+    NOTAMs: NATS Contingency PIB (hourly). Zones: NATS AIRAC.<br>
+    Hazards: OpenStreetMap contributors.</p>
+    <div style="margin-top:5px;display:flex;gap:10px;flex-wrap:wrap">
+      <a class="dlink" href="https://nats-uk.ead-it.com/cms-nats/opencms/en/Briefing/contingency-pibs/" target="_blank">↗ OFFICIAL PIB</a>
+      <a class="dlink" href="https://nats-uk.ead-it.com/cms-nats/opencms/en/uas-restriction-zones/" target="_blank">↗ UAS ZONES</a>
+      <a class="dlink" href="https://www.caa.co.uk/drones/" target="_blank">↗ CAA DRONES</a>
+    </div>
+  </div>
+</aside>
+
+<div id="map">
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="ltxt">INITIALISING</div>
+    <div class="lsub2" id="load-sub">Loading satellite imagery…</div>
+  </div>
+  <div class="tile-switcher" id="tile-switcher"></div>
+  <div class="haz-indicator" id="haz-ind"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+window.addEventListener('load', function initApp() {
+
+  // ═══════════════════════════════════════════════════════════════════
+  // UNIT SWITCHER — NM / km / mi (internal calc always in NM)
+  // ═══════════════════════════════════════════════════════════════════
+  const UNITS = [
+    { id:'nm', label:'NM',  factor:1,          fmt: v => v>=1000?`${(v/1000).toFixed(1)}k NM`:v>=100?`${Math.round(v)} NM`:`${v.toFixed(1)} NM` },
+    { id:'km', label:'km',  factor:1.852,       fmt: v => v>=1000?`${(v/1000).toFixed(1)}k km`:v>=100?`${Math.round(v)} km`:`${v.toFixed(1)} km` },
+    { id:'mi', label:'mi',  factor:1.15078,     fmt: v => v>=1000?`${(v/1000).toFixed(1)}k mi`:v>=100?`${Math.round(v)} mi`:`${v.toFixed(1)} mi` },
+    { id:'ft', label:'ft',  factor:6076.115,    fmt: v => v>=5280?`${(v/5280).toFixed(1)}k ft`:`${Math.round(v)} ft` },
+  ];
+  let unitIdx = 0; // start on NM
+
+  window.cycleUnit = function() {
+    unitIdx = (unitIdx + 1) % UNITS.length;
+    updateWidthReadout();
+  };
+
+  function getMapWidthNM() {
+    const b = map.getBounds();
+    const lat = (b.getNorth() + b.getSouth()) / 2;
+    const R = 3440.065;
+    const dLng = (b.getEast() - b.getWest()) * Math.PI / 180;
+    return Math.abs(R * dLng * Math.cos(lat * Math.PI / 180));
+  }
+
+  function updateWidthReadout() {
+    const nm = getMapWidthNM();
+    const u = UNITS[unitIdx];
+    document.getElementById('width-readout').textContent = u.fmt(nm * u.factor);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // TILE LAYERS
+  // Satellite + transparent label overlay for place names on sat view
+  // ═══════════════════════════════════════════════════════════════════
+  const SAT_BASE = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { attribution: 'Imagery &copy; Esri, Maxar, GeoEye, Earthstar Geographics', maxZoom:19 }
+  );
+  // Esri's dedicated reference/labels overlay — transparent, designed for sat
+  const SAT_LABELS = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    { attribution: '', maxZoom:19, pane:'overlayPane', opacity:1 }
+  );
+
+  const TILES = [
+    { id:'satellite', label:'🛰 SAT',   base: SAT_BASE, hasLabels: true },
+    { id:'osm',       label:'🗺 OSM',   base: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        { attribution:'&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>', maxZoom:19 }), hasLabels:false },
+    { id:'carto-l',   label:'☀ LIGHT', base: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+        { attribution:'&copy; CARTO &copy; OSM', subdomains:'abcd', maxZoom:19 }), hasLabels:false },
+    { id:'carto-d',   label:'🌑 DARK',  base: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+        { attribution:'&copy; CARTO &copy; OSM', subdomains:'abcd', maxZoom:19 }), hasLabels:false },
+    { id:'topo',      label:'⛰ TOPO',  base: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+        { attribution:'Tiles &copy; Esri', maxZoom:19 }), hasLabels:false },
+  ];
+
+  const map = L.map('map', { center:[54.5,-2.5], zoom:6, zoomControl:true });
+  let currentTileId = 'satellite';
+  let labelsOn = true;
+
+  SAT_BASE.addTo(map);
+  SAT_LABELS.addTo(map); // labels on by default with satellite
+
+  // Build tile switcher
+  const switcherEl = document.getElementById('tile-switcher');
+  TILES.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'tbtn' + (t.id === 'satellite' ? ' active' : '');
+    btn.textContent = t.label;
+    btn.onclick = () => switchTile(t.id);
+    btn.id = `tbtn-${t.id}`;
+    switcherEl.appendChild(btn);
+  });
+
+  // Labels toggle button — positioned right of tile switcher dynamically
+  const labelsBtn = document.createElement('button');
+  labelsBtn.className = 'labels-btn on';
+  labelsBtn.textContent = '🏷 LABELS';
+  labelsBtn.id = 'labels-btn';
+  labelsBtn.onclick = toggleLabels;
+  document.getElementById('map').appendChild(labelsBtn);
+
+  // Position labels button right of tile switcher
+  function positionLabelsBtn() {
+    const sw = switcherEl.getBoundingClientRect();
+    const mapRect = document.getElementById('map').getBoundingClientRect();
+    labelsBtn.style.left = (sw.right - mapRect.left + 6) + 'px';
+    labelsBtn.style.top = '10px';
+  }
+  setTimeout(positionLabelsBtn, 100);
+  window.addEventListener('resize', positionLabelsBtn);
+
+  function toggleLabels() {
+    labelsOn = !labelsOn;
+    labelsBtn.classList.toggle('on', labelsOn);
+    const cur = TILES.find(t => t.id === currentTileId);
+    if (cur && cur.hasLabels) {
+      labelsOn ? SAT_LABELS.addTo(map) : map.removeLayer(SAT_LABELS);
+    }
+    // For non-sat tiles, labels are baked in — button hidden
+    labelsBtn.style.opacity = (cur && cur.hasLabels) ? '1' : '0.3';
+    labelsBtn.style.pointerEvents = (cur && cur.hasLabels) ? 'all' : 'none';
+    bringLayersToTop();
+  }
+
+  function switchTile(id) {
+    if (id === currentTileId) return;
+    const prev = TILES.find(t => t.id === currentTileId);
+    const next = TILES.find(t => t.id === id);
+    if (!next) return;
+    map.removeLayer(prev.base);
+    if (prev.hasLabels) map.removeLayer(SAT_LABELS);
+    next.base.addTo(map);
+    if (next.hasLabels && labelsOn) SAT_LABELS.addTo(map);
+    // Show/grey labels button based on whether this tile supports separate labels
+    labelsBtn.style.opacity = next.hasLabels ? '1' : '0.3';
+    labelsBtn.style.pointerEvents = next.hasLabels ? 'all' : 'none';
+    currentTileId = id;
+    document.querySelectorAll('.tbtn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tbtn-${id}`).classList.add('active');
+    bringLayersToTop();
+  }
+  window.switchTile = switchTile;
+
+  function bringLayersToTop() {
+    Object.values(AL).forEach(lg => { if(map.hasLayer(lg)){map.removeLayer(lg);map.addLayer(lg);} });
+    Object.values(HL).forEach(lg => { if(lg&&map.hasLayer(lg)){map.removeLayer(lg);map.addLayer(lg);} });
+  }
+
+  loadSub('Map loaded. Rendering zones…');
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LAYER GROUPS
+  // ═══════════════════════════════════════════════════════════════════
+  const AL = {
+    frz:        L.layerGroup().addTo(map),
+    restricted: L.layerGroup().addTo(map),
+    danger:     L.layerGroup().addTo(map),
+    notams:     L.layerGroup().addTo(map)
+  };
+  const HL = {};
+  const layerToggleState = { frz:true, restricted:true, danger:true, notams:true };
+  // All hazard layers on by default — matches the toggled-on buttons in HTML
+  const hazToggleState = { powerlines:true, substations:true, railways:true, roads:true, schools:true, prisons:true, hospitals:true, turbines:true, solar:true };
+  let hazFetchInFlight = 0;
+  let _hazGeneration = 0; // increments on each fetchHazards call; stale results are discarded
+  // Pre-create HL layer groups for all hazard types
+  Object.keys(hazToggleState).forEach(n => { HL[n] = L.layerGroup(); });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ZOOM THRESHOLD SCAFFOLDING
+  // ═══════════════════════════════════════════════════════════════════
+  const ZOOM_RULES = {
+    always:  () => true,
+    surface: () => true,
+    upper:   () => getMapWidthNM() >= 200,
+    large:   () => getMapWidthNM() <= 30,
+    fine:    () => getMapWidthNM() <= 10,
+  };
+  function isZoomVisible(cat) { return (ZOOM_RULES[cat] || (() => true))(); }
+
+  function checkZoomVisibility() {
+    updateWidthReadout();
+    document.querySelectorAll('[data-zoom-cat]').forEach(el => {
+      const cat = el.dataset.zoomCat;
+      const name = el.dataset.layer;
+      const ok = isZoomVisible(cat);
+      if (el.classList.contains('ltog')) el.classList.toggle('zoom-hidden', !ok);
+      if (AL[name]) {
+        const on = layerToggleState[name] !== false;
+        on && ok ? (!map.hasLayer(AL[name]) && map.addLayer(AL[name])) : (map.hasLayer(AL[name]) && map.removeLayer(AL[name]));
+      }
+      if (HL[name]) {
+        const on = hazToggleState[name] === true;
+        on && ok ? (!map.hasLayer(HL[name]) && map.addLayer(HL[name])) : (map.hasLayer(HL[name]) && map.removeLayer(HL[name]));
+      }
+    });
+  }
+
+  window.toggleLayer = function(name, el) {
+    el.classList.toggle('on');
+    layerToggleState[name] = el.classList.contains('on');
+    checkZoomVisibility();
+  };
+
+  window.toggleHazard = function(name, el) {
+    el.classList.toggle('on');
+    hazToggleState[name] = el.classList.contains('on');
+    if (!HL[name]) HL[name] = L.layerGroup();
+    if (hazToggleState[name]) { checkZoomVisibility(); fetchHazards(); }
+    else if (map.hasLayer(HL[name])) map.removeLayer(HL[name]);
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // OVERPASS — batched, with fallback endpoint
+  // Primary: overpass.private.coffee (no rate limit, reliable April 2026)
+  // Fallback: overpass-api.de
+  // ═══════════════════════════════════════════════════════════════════
+  const OVERPASS_ENDPOINTS = [
+    'https://overpass.private.coffee/api/interpreter',
+    'https://overpass-api.de/api/interpreter',
+  ];
+
+  // Direct call — no queue. fetchHazards uses generation counter to discard stale results.
+  // fetchCTRPolygons is gone (replaced by NATS KML). Keeping _overpassFetch for resilience.
+
+  async function _overpassFetch(ql, attempt = 0) {
+    const body = 'data=' + encodeURIComponent(ql);
+    const ep = OVERPASS_ENDPOINTS[attempt % OVERPASS_ENDPOINTS.length];
+    const MAX_ATTEMPTS = 4;
+    try {
+      const res = await fetch(ep, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+        signal: AbortSignal.timeout(45000)
+      });
+      if (res.status === 429 || res.status === 503) {
+        // Rate-limited — wait and retry on next endpoint
+        const wait = Math.min(3000 * Math.pow(2, attempt), 20000);
+        console.warn(`Overpass ${ep} rate-limited, retrying in ${wait}ms…`);
+        await new Promise(r => setTimeout(r, wait));
+        if (attempt < MAX_ATTEMPTS) return _overpassFetch(ql, attempt + 1);
+        throw new Error('Overpass rate-limited on all attempts');
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data && data.elements) { console.log(`Overpass OK (${ep}): ${data.elements.length} elements`); return data; }
+      throw new Error('No elements in response');
+    } catch(e) {
+      console.warn(`Overpass attempt ${attempt+1} (${ep}) failed: ${e.message}`);
+      if (attempt < MAX_ATTEMPTS) {
+        const wait = Math.min(1500 * Math.pow(2, attempt), 12000);
+        await new Promise(r => setTimeout(r, wait));
+        return _overpassFetch(ql, attempt + 1);
+      }
+      throw new Error('All Overpass attempts failed');
+    }
+  }
+
+  function overpassQuery(ql) { return _overpassFetch(ql); }
+
+  const HAZ = {
+    powerlines:  { color:'#ff9500', w:1.8, dash:'6 3', type:'line',
+      q: b=>`way["power"="line"](${b});way["power"="minor_line"](${b});` },
+    substations: { color:'#ffcc00', type:'poly-or-point',
+      label: t=>t.name||t.operator||(t.power==='plant'?'Power Station':'Substation'),
+      q: b=>`node["power"="substation"](${b});node["power"="plant"](${b});way["power"="substation"](${b});way["power"="plant"](${b});` },
+    railways:    { color:'#b0f0ff', w:2, type:'line',
+      q: b=>`way["railway"="rail"](${b});way["railway"="light_rail"](${b});way["railway"="subway"](${b});` },
+    roads:       { color:'#a8a8ff', w:1.5, type:'line',
+      q: b=>`way["highway"="motorway"](${b});way["highway"="trunk"](${b});way["highway"="primary"](${b});` },
+    schools:     { color:'#88ff88', type:'poly-or-point', label: t=>t.name||'School / College',
+      q: b=>`node["amenity"="school"](${b});node["amenity"="college"](${b});node["amenity"="university"](${b});way["amenity"="school"](${b});way["amenity"="college"](${b});way["amenity"="university"](${b});` },
+    prisons:     { color:'#cc88ff', type:'poly-or-point', label: t=>t.name||'Prison / Secure Facility',
+      q: b=>`node["amenity"="prison"](${b});way["amenity"="prison"](${b});way["building"="prison"](${b});` },
+    hospitals:   { color:'#ff88cc', type:'poly-or-point', label: t=>t.name||'Hospital',
+      q: b=>`node["amenity"="hospital"](${b});way["amenity"="hospital"](${b});` },
+    turbines:    { color:'#ffaa44', type:'poly-or-point',
+      label: t=>t['generator:source']==='wind'||t['man_made']==='wind_turbine'?'Wind Turbine':t['man_made']==='mast'?'Mast':'Power Tower',
+      q: b=>`node["generator:source"="wind"](${b});node["man_made"="wind_turbine"](${b});way["generator:source"="wind"](${b});way["man_made"="wind_turbine"](${b});node["man_made"="mast"](${b});node["power"="tower"](${b});` },
+    solar:       { color:'#ffe066', type:'poly-or-point', label: t=>t.name||'Solar Farm / Array',
+      q: b=>`way["power"="generator"]["generator:source"="solar"](${b});way["landuse"="industrial"]["plant:source"="solar"](${b});` },
+  };
+
+  function classifyEl(t) {
+    if (t.power==='line'||t.power==='minor_line') return 'powerlines';
+    if (t.power==='substation'||t.power==='plant') return 'substations';
+    if (t.power==='tower') return null; // power towers not useful as hazards at drone scale
+    if (t['generator:source']==='solar'||t['plant:source']==='solar') return 'solar';
+    if (t['generator:source']==='wind'||t['man_made']==='wind_turbine') return 'turbines';
+    if (t.railway==='rail'||t.railway==='light_rail'||t.railway==='subway') return 'railways';
+    if (t.highway==='motorway'||t.highway==='trunk'||t.highway==='primary') return 'roads';
+    if (t.amenity==='school'||t.amenity==='college'||t.amenity==='university') return 'schools';
+    if (t.amenity==='prison'||t.building==='prison') return 'prisons';
+    if (t.amenity==='hospital') return 'hospitals';
+    if (t['man_made']==='mast') return 'turbines';
+    return null;
+  }
+  function featCenter(f) {
+    if (f.center) return [f.center.lat,f.center.lon];
+    if (f.lat!=null) return [f.lat,f.lon];
+    if (f.geometry&&f.geometry.length) { const m=f.geometry[Math.floor(f.geometry.length/2)]; return [m.lat,m.lon]; }
+    return null;
+  }
+
+  // ── Tile-grid cache ─────────────────────────────────────────────────
+  // Hazard data is cached by 0.5° tile rather than exact viewport bounds.
+  // Tile ID: "layerName:row_col" where row=floor(lat/0.5), col=floor(lon/0.5)
+  // Once a tile is fetched in a session it is never re-fetched.
+  // On each viewport settle we work out which tiles intersect the view,
+  // fetch only the uncached ones (possibly batching multiple tiles into one
+  // Overpass query), then add their features to the layer group.
+  const TILE_DEG = 0.5; // degrees — ~33km × ~27km over the UK
+  const tileCache = new Map(); // tileKey → true (fetched)
+
+  function tilesForBounds(b) {
+    // Returns array of {row, col, south, west, north, east} covering the bounds
+    const tiles = [];
+    const rowMin = Math.floor(b.getSouth() / TILE_DEG);
+    const rowMax = Math.floor(b.getNorth() / TILE_DEG);
+    const colMin = Math.floor(b.getWest()  / TILE_DEG);
+    const colMax = Math.floor(b.getEast()  / TILE_DEG);
+    for (let r = rowMin; r <= rowMax; r++) {
+      for (let c = colMin; c <= colMax; c++) {
+        tiles.push({
+          row: r, col: c,
+          south: r * TILE_DEG,       west:  c * TILE_DEG,
+          north: (r+1) * TILE_DEG,   east:  (c+1) * TILE_DEG,
+        });
+      }
+    }
+    return tiles;
+  }
+
+  async function fetchHazards() {
+    const b = map.getBounds();
+
+    // Which layers are currently eligible (on + zoom-visible)?
+    const eligibleLayers = Object.keys(HAZ).filter(name => {
+      if (!hazToggleState[name]) return false;
+      const el = document.querySelector(`[data-layer="${name}"]`);
+      return isZoomVisible(el ? el.dataset.zoomCat : 'large');
+    });
+    if (!eligibleLayers.length) return;
+
+    // Which tiles × layers still need fetching?
+    const tiles = tilesForBounds(b);
+    const needed = []; // { tile, layers[] }
+    for (const tile of tiles) {
+      const missingLayers = eligibleLayers.filter(name => !tileCache.has(`${name}:${tile.row}_${tile.col}`));
+      if (missingLayers.length) needed.push({ tile, layers: missingLayers });
+    }
+    if (!needed.length) return;
+
+    _hazGeneration++;
+    const myGen = _hazGeneration;
+    hazFetchInFlight = (hazFetchInFlight || 0) + 1;
+    showHazInd('⟳ LOADING HAZARDS…');
+
+    try {
+      // Batch all missing tiles × layers into the fewest possible Overpass queries.
+      // Group by the set of layers needed (most of the time it's all layers, so one query).
+      // For each unique layer-set, union all tile bboxes into one query.
+      const byLayerKey = new Map();
+      for (const { tile, layers } of needed) {
+        const key = layers.slice().sort().join(',');
+        if (!byLayerKey.has(key)) byLayerKey.set(key, { layers, tiles: [] });
+        byLayerKey.get(key).tiles.push(tile);
+      }
+
+      for (const { layers, tiles: batchTiles } of byLayerKey.values()) {
+        // Build one QL statement per tile bbox, unioned together
+        const tileQLs = batchTiles.flatMap(t => {
+          const bstr = `${t.south.toFixed(3)},${t.west.toFixed(3)},${t.north.toFixed(3)},${t.east.toFixed(3)}`;
+          return layers.map(name => HAZ[name].q(bstr));
+        });
+        const fullQL = `[out:json][timeout:45];(${tileQLs.join('')});out geom;`;
+
+        const data = await overpassQuery(fullQL);
+
+        // Discard results if a newer fetchHazards call has superseded this one
+        if (myGen !== _hazGeneration) { console.log('fetchHazards: stale result discarded'); break; }
+
+        // Mark all fetched tiles as cached before processing elements
+        // (so a re-entrant call won't re-fetch while we're rendering)
+        for (const t of batchTiles) {
+          for (const name of layers) tileCache.set(`${name}:${t.row}_${t.col}`, true);
+        }
+
+        // Ensure layer groups exist
+        layers.forEach(name => { if (!HL[name]) HL[name] = L.layerGroup(); });
+
+        // Build node coord lookup for ways that reference nodes by ID
+        const nodeMap = {};
+        data.elements.forEach(f => { if (f.type === 'node' && f.lat != null) nodeMap[f.id] = [f.lat, f.lon]; });
+
+        // Helper: resolve way geometry from inline coords or nodeMap
+        function wayPts(f) {
+          if (f.geometry && f.geometry.length >= 2) return f.geometry.map(g => [g.lat, g.lon]);
+          if (f.nodes && f.nodes.length >= 2) return f.nodes.map(id => nodeMap[id]).filter(Boolean);
+          return [];
+        }
+
+        data.elements.forEach(feat => {
+          const tags = feat.tags||{};
+          const name = classifyEl(tags);
+          if (!name || !layers.includes(name) || !HL[name]) return;
+          const def = HAZ[name];
+
+          if (def.type === 'line') {
+            const pts = wayPts(feat);
+            if (pts.length < 2) return;
+            L.polyline(pts, { color:def.color, weight:def.w||2, opacity:0.8, dashArray:def.dash||null })
+              .addTo(HL[name]);
+
+          } else if (def.type === 'poly-or-point') {
+            const label = def.label ? def.label(tags) : name;
+            const popupText = `${label}
+Source: OpenStreetMap contributors`;
+            const pts = wayPts(feat);
+            const veryFine = getMapWidthNM() <= 2;
+
+            if (pts.length >= 3) {
+              // Viewport % size filter — skip small polygons unless zoomed very close
+              // Feature bbox area vs viewport area; threshold 1.5%
+              const lats = pts.map(p => p[0]), lons = pts.map(p => p[1]);
+              const fLatSpan = Math.max(...lats) - Math.min(...lats);
+              const fLonSpan = Math.max(...lons) - Math.min(...lons);
+              const vp = map.getBounds();
+              const vpLatSpan = vp.getNorth() - vp.getSouth();
+              const vpLonSpan = vp.getEast()  - vp.getWest();
+              const sizeRatio = (fLatSpan * fLonSpan) / (vpLatSpan * vpLonSpan);
+              if (sizeRatio < 0.015 && !veryFine) return; // too small to be useful at this zoom
+              L.polygon(pts, {
+                color: def.color, weight: 1.5, opacity: 0.9,
+                fillColor: def.color, fillOpacity: 0.18
+              }).bindPopup(popup(label, popupText)).addTo(HL[name]);
+            } else if (veryFine) {
+              // Point markers only shown at ≤2NM — avoids dot-spam at normal zoom
+              const pos = featCenter(feat);
+              if (!pos) return;
+              const icon = L.divIcon({
+                className:'',
+                html:`<div style="width:8px;height:8px;border-radius:50%;background:${def.color};border:2px solid ${def.color};box-shadow:0 0 6px ${def.color}99"></div>`,
+                iconSize:[8,8], iconAnchor:[4,4]
+              });
+              L.marker(pos,{icon}).bindPopup(popup(label, popupText)).addTo(HL[name]);
+            }
+          }
+        });
+
+        // Add layers to map if they should be visible
+        layers.forEach(name => {
+          const el = document.querySelector(`[data-layer="${name}"]`);
+          if (hazToggleState[name] && isZoomVisible(el ? el.dataset.zoomCat : 'large')) {
+            if (!map.hasLayer(HL[name])) map.addLayer(HL[name]);
+          }
+        });
+      } // end byLayerKey loop
+
+    } catch(e) {
+      console.error('fetchHazards error:', e.message);
+    } finally {
+      hazFetchInFlight = Math.max(0, (hazFetchInFlight || 1) - 1);
+      if (!hazFetchInFlight) hideHazInd();
+    }
+  }
+
+  let moveTimer;
+  map.on('moveend zoomend', () => {
+    checkZoomVisibility();
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(() => fetchHazards(), 800);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // VIEWPORT-FILTERED STATIC ZONES (no padding — snaps at exact edge)
+  // ═══════════════════════════════════════════════════════════════════
+  const ZONE_DATA = {
+    frz: [
+      ['Heathrow (EGLL)',51.4775,-0.4614,5000],['Gatwick (EGKK)',51.1481,-0.1903,5000],
+      ['Manchester (EGCC)',53.3537,-2.2750,5000],['Edinburgh (EGPH)',55.9500,-3.3725,5000],
+      ['Birmingham (EGBB)',52.4539,-1.7480,5000],['Bristol (EGGD)',51.3827,-2.7191,5000],
+      ['Leeds Bradford (EGNM)',53.8659,-1.6606,5000],['Glasgow (EGPF)',55.8718,-4.4330,5000],
+      ['Newcastle (EGNT)',55.0374,-1.6917,5000],['Stansted (EGSS)',51.8850,0.2350,5000],
+      ['Luton (EGGW)',51.8747,-0.3683,5000],['Liverpool (EGGP)',53.3336,-2.8497,5000],
+      ['East Midlands (EGNX)',52.8311,-1.3281,5000],['Aberdeen (EGPD)',57.2019,-2.1978,5000],
+      ['Southampton (EGHI)',50.9503,-1.3568,5000],['Belfast Intl (EGAA)',54.6575,-6.2158,5000],
+      ['Cardiff (EGFF)',51.3967,-3.3433,5000],['London City (EGLC)',51.5053,0.0553,3000],
+      ['Inverness (EGPE)',57.5425,-4.0475,3500],['Exeter (EGTE)',50.7344,-3.4139,3500],
+      ['Norwich (EGSH)',52.6758,1.2828,3500],['Bournemouth (EGHH)',50.7800,-1.8425,3500],
+      ['Doncaster (EGCN)',53.4805,-1.0106,3500],['Humberside (EGNJ)',53.5744,-0.3508,3500],
+      ['Prestwick (EGPK)',55.5094,-4.5869,3500],['Sumburgh (EGPB)',59.8789,-1.2956,3500],
+      ['Kirkwall (EGPA)',58.9578,-2.9050,3000],['Stornoway (EGPO)',58.2156,-6.3311,3000],
+      ['Durham Tees Valley (EGNV)',54.5092,-1.4294,3500],['Newquay (EGHQ)',50.4406,-4.9953,3500],
+      ['Blackpool (EGNH)',53.7717,-3.0286,3500],['Hawarden (EGNR)',53.1781,-2.9778,3000],
+      ['Londonderry (EGAE)',55.0428,-7.1611,3000],['Belfast City (EGAC)',54.6181,-5.8728,3000],
+      ['Ronaldsway (EGNS)',54.0833,-4.6239,3500],['Jersey (EGJJ)',49.2078,-2.1956,4000],
+      ['Guernsey (EGJB)',49.4350,-2.6017,4000],
+    ],
+    restricted: [
+      ['Otterburn Ranges',55.2333,-2.1500,8000],['Spadeadam (EGD401)',54.9167,-2.5500,7000],
+      ['Leeming (EGXE)',54.2922,-1.5353,4000],['Linton-on-Ouse (EGXU)',54.0483,-1.2528,3500],
+      ['Coningsby (EGXC)',53.0933,-0.1664,4500],['Waddington (EGXW)',53.1664,-0.5228,4000],
+      ['Marham (EGYM)',52.6483,0.5503,4000],['Brize Norton (EGVN)',51.7497,-1.5833,5000],
+      ['Boscombe Down (EGDM)',51.1522,-1.7478,4000],['Valley (EGOV)',53.2525,-4.5353,4000],
+      ['Leuchars (EGQL)',56.3728,-2.8681,4000],['Lossiemouth (EGQS)',57.7053,-3.3392,4500],
+      ['Kinloss (EGQK)',57.6497,-3.5608,4000],['Lakenheath (EGUL)',52.4094,0.5603,5000],
+      ['Mildenhall (EGUN)',52.3619,0.4864,4000],['Fairford (EGVA)',51.6822,-1.7903,4500],
+      ['Boulmer (NSA)',55.4228,-1.5983,3000],['Fylingdales (NSA)',54.3614,-0.6733,4000],
+      ['Porton Down (DSTL)',51.1247,-1.7192,3000],['Aldermaston (AWE)',51.3756,-1.1647,3000],
+      ['Coulport (NSA)',56.0458,-4.8628,3000],['Faslane (NSA)',56.0733,-4.8078,3000],
+    ],
+    danger: [
+      ['Otterburn Range (EGD407)',55.1500,-2.2333,10000],['Redesdale (EGD400)',55.2500,-2.3167,6000],
+      ['Donna Nook (EGD321)',53.4667,0.1333,7000],['Holbeach (EGD323)',52.8500,0.1167,5000],
+      ['Salisbury Plain (EGD131)',51.2167,-1.8500,12000],['Castlemartin (EGD196)',51.6167,-4.9500,6000],
+      ['Pembrey (EGD201)',51.7000,-4.2667,5000],['Cape Wrath (EGD701)',58.6167,-4.9833,15000],
+      ['Hebrides Range (EGD710)',57.3333,-7.3333,20000],['Barry Buddon (EGD411)',56.4667,-2.7333,5000],
+      ['Tain Range (EGD703)',57.7833,-3.9667,8000],['Luce Bay (EGD123)',54.8333,-4.8333,8000],
+      ['Sennybridge (EGD139)',51.9500,-3.5833,8000],
+    ]
+  };
+  const ZONE_STYLE = {
+    frz:        {color:'#ff3b3b',weight:2,  fillColor:'#ff3b3b',fillOpacity:.13,dashArray:null},
+    restricted: {color:'#ff6b35',weight:1.8,fillColor:'#ff6b35',fillOpacity:.10,dashArray:'5 4'},
+    danger:     {color:'#ffd700',weight:1.5,fillColor:'#ffd700',fillOpacity:.07,dashArray:'3 5'},
+  };
+  const ZONE_DESC = {
+    frz:        (n,r)=>`Flight Restriction Zone\nNo UAS without ATC permission.\nApprox radius: ${(r/1000).toFixed(1)}km\n\nSource: UK AIP ENR 5.1 (NATS)\n⚠ Check official NATS dataset for exact boundary.`,
+    restricted: (n,r)=>`UAS Restricted Area — Military/Protected\nApprox radius: ${(r/1000).toFixed(1)}km\n\nSource: UK AIP ENR 5.1 (NATS)`,
+    danger:     (n,r)=>`MoD Danger Area / Range\nCheck NOTAM for activation status.\nApprox radius: ${(r/1000).toFixed(1)}km\n\nSource: UK AIP ENR 5.1 (NATS)`,
+  };
+  const zoneObjs = {};
+
+  // FRZ/RPZ layer — official NATS KML, replaces static circles
+  // Styled distinctly: FRZ core (red solid), RPZ runway extensions (red dashed)
+  const frzKmlLayer = L.layerGroup().addTo(map);
+  let frzKmlLoaded = false;
+
+  // AIRAC cycle: seed 2020-01-02, period 28 days. Compute current effective date.
+  function currentAiracDate() {
+    const seed = new Date('2020-01-02');
+    const now  = new Date();
+    const days = Math.floor((now - seed) / 86400000);
+    const n    = Math.floor(days / 28);
+    const d    = new Date(seed.getTime() + n * 28 * 86400000);
+    const yyyy = d.getUTCFullYear();
+    const mm   = String(d.getUTCMonth()+1).padStart(2,'0');
+    const dd   = String(d.getUTCDate()).padStart(2,'0');
+    return `${yyyy}${mm}${dd}`;
+  }
+
+  async function loadNatsKml() {
+    if (frzKmlLoaded) return;
+    const dateStr = currentAiracDate();
+    const kmlZipUrl = `https://nats-uk.ead-it.com/cms-nats/export/sites/default/en/Publications/digital-datasets/UAS_AREA_1/EG_UAS_FR_DS_AREA1_FULL_${dateStr}_KML.zip`;
+
+    // Try multiple CORS proxies in order — allorigins struggles with binary zips
+    // and blocks file:// origins. corsproxy.io and cors.sh handle binary better.
+    const proxies = [
+      `https://corsproxy.io/?${encodeURIComponent(kmlZipUrl)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(kmlZipUrl)}`,
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(kmlZipUrl)}`,
+    ];
+
+    console.log(`Loading NATS FRZ KML for AIRAC ${dateStr}…`);
+    let buf = null;
+    for (const url of proxies) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) { console.warn(`KML proxy failed (${res.status}): ${url}`); continue; }
+        buf = await res.arrayBuffer();
+        if (buf.byteLength > 1000) break; // got real data
+        buf = null;
+      } catch(e) { console.warn(`KML proxy error: ${url}`, e.message); }
+    }
+
+    if (!buf) {
+      console.warn('NATS KML: all proxies failed — static circles remain as fallback');
+      return;
+    }
+
+    try {
+      const zip  = await JSZip.loadAsync(buf);
+      const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
+      if (!kmlFile) throw new Error('No KML file found in zip');
+      const kmlText = await kmlFile.async('string');
+      parseNatsKml(kmlText);
+      frzKmlLoaded = true;
+      console.log('NATS FRZ KML loaded successfully');
+    } catch(e) {
+      console.warn('NATS KML parse failed:', e.message);
+    }
+  }
+
+  function parseNatsKml(kmlText) {
+    const parser = new DOMParser();
+    const doc    = parser.parseFromString(kmlText, 'application/xml');
+    frzKmlLayer.clearLayers();
+
+    // KML uses LineString joining points on circle/curve circumference
+    // Placemark names contain the zone identifier (e.g. "EG_FRZ_EGNT" or "EG_RPZ_EGNT_07")
+    doc.querySelectorAll('Placemark').forEach(pm => {
+      const nameEl = pm.querySelector('name');
+      const name   = nameEl ? nameEl.textContent.trim() : '';
+      const desc   = pm.querySelector('description')?.textContent?.trim() || '';
+
+      // Determine type from name pattern
+      const isRpz = /RPZ/i.test(name);
+      const color  = '#ff3b3b';
+      const dash   = isRpz ? '8 4' : null;
+      const weight = isRpz ? 1.5 : 2;
+      const fillOp = isRpz ? 0.07 : 0.12;
+      const typeLabel = isRpz ? 'Runway Protection Zone' : 'Flight Restriction Zone';
+      const icaoM = name.match(/\b(EG[A-Z]{2})\b/); const icao = icaoM ? icaoM[1] : '';
+
+      const popupBody = `${typeLabel}${icao ? ' — ' + icao : ''}\nNo UAS without ATC permission.\n\nSource: NATS UK AIP ENR 5.1 (official)\nAIRAC ${currentAiracDate()}`;
+
+      // Try Polygon first, then LineString (both used in NATS KML)
+      const coords = extractKmlCoords(pm);
+      if (coords.length >= 3) {
+        L.polygon(coords, {
+          color, weight, opacity: 1,
+          fillColor: color, fillOpacity: fillOp,
+          dashArray: dash
+        }).bindPopup(popup(typeLabel + (icao ? ': ' + icao : ''), popupBody))
+          .addTo(frzKmlLayer);
+      }
+    });
+  }
+
+  function extractKmlCoords(pm) {
+    // Try Polygon > outerBoundaryIs first, then LineString
+    const coordEl = pm.querySelector('outerBoundaryIs coordinates, LinearRing coordinates, LineString coordinates, coordinates');
+    if (!coordEl) return [];
+    return coordEl.textContent.trim().split(/\s+/).map(c => {
+      const [lon, lat] = c.split(',').map(Number);
+      return isNaN(lat) || isNaN(lon) ? null : [lat, lon];
+    }).filter(Boolean);
+  }
+
+  function renderZones() {
+    const bounds = map.getBounds();
+    ['frz','restricted','danger'].forEach(type => {
+      ZONE_DATA[type].forEach(([name,lat,lng,r],idx) => {
+        const key = `${type}-${idx}`;
+        const inView = bounds.contains(L.latLng(lat,lng));
+        if (inView) {
+          if (!zoneObjs[key]) {
+            const s = ZONE_STYLE[type];
+            // FRZ circles are shown faintly as fallback until KML loads, then stay as guide
+            const fallbackOp = (type === 'frz' && frzKmlLoaded) ? 0.04 : s.fillOpacity;
+            zoneObjs[key] = L.circle([lat,lng],{radius:r,color:s.color,weight:s.weight,fillColor:s.fillColor,fillOpacity:fallbackOp,dashArray:s.dashArray})
+              .bindPopup(popup(`${type.toUpperCase()}: ${name}`, ZONE_DESC[type](name,r)));
+          }
+          if (!AL[type].hasLayer(zoneObjs[key])) AL[type].addLayer(zoneObjs[key]);
+        } else {
+          if (zoneObjs[key] && AL[type].hasLayer(zoneObjs[key])) AL[type].removeLayer(zoneObjs[key]);
+        }
+      });
+    });
+  }
+
+  map.on('moveend zoomend', renderZones);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LOCATION SEARCH — Nominatim (OSM geocoder, no key needed)
+  // ═══════════════════════════════════════════════════════════════════
+  let searchMarker = null;
+  let locDebounce;
+
+  window.onLocInput = function(val) {
+    clearTimeout(locDebounce);
+    if (val.length < 3) { closeLocResults(); return; }
+    locDebounce = setTimeout(() => nominatimSuggest(val), 400);
+  };
+
+  async function nominatimSuggest(q) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&countrycodes=gb&limit=5&format=json&addressdetails=1`;
+      const res = await fetch(url, { headers:{'Accept-Language':'en'} });
+      const results = await res.json();
+      showLocResults(results);
+    } catch(e) { closeLocResults(); }
+  }
+
+  function showLocResults(results) {
+    const el = document.getElementById('loc-results');
+    if (!results.length) { el.style.display='none'; return; }
+    el.style.display = 'block';
+    el.innerHTML = results.map((r,i) =>
+      `<div class="loc-result-item" onclick="goToResult(${r.lat},${r.lon},'${r.display_name.replace(/'/g,'')}')">${r.display_name.substring(0,60)}${r.display_name.length>60?'…':''}</div>`
+    ).join('');
+  }
+
+  window.goToResult = function(lat, lon, name) {
+    const ll = L.latLng(+lat,+lon);
+    map.setView(ll, 13);
+    if (searchMarker) map.removeLayer(searchMarker);
+    searchMarker = L.circleMarker(ll, {radius:9,color:'#00e5ff',fillColor:'#00e5ff',fillOpacity:.7,weight:2})
+      .bindPopup(popup('SEARCH RESULT', name)).addTo(map).openPopup();
+    closeLocResults();
+    document.getElementById('loc-input').value = name.substring(0,40);
+  };
+
+  window.searchLocation = function() {
+    const q = document.getElementById('loc-input').value.trim();
+    if (q) nominatimSuggest(q);
+  };
+
+  function closeLocResults() {
+    document.getElementById('loc-results').style.display = 'none';
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.loc-search') && !e.target.closest('.loc-results')) closeLocResults();
+  });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // POPUP HELPER
+  // ═══════════════════════════════════════════════════════════════════
+  function popup(title, body) {
+    return `<div class="pop-title">${title}</div><div class="pop-body">${body}</div>`;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // NOTAM FEED
+  // ═══════════════════════════════════════════════════════════════════
+  let allNotams=[], selectedId=null;
+  // corsproxy.io handles file:// origins better than allorigins
+  const PROXY='https://corsproxy.io/?';
+  const PIB_URL='https://jonty.github.io/uk-notam-archive/html/pib5.shtml';
+
+  function setChip(state,txt){const el=document.getElementById('notam-chip');el.className=`chip ${state}`;document.getElementById('notam-txt').textContent=txt;}
+
+  async function fetchNotams(){
+    setChip('yellow','LOADING NOTAMs');
+    let html=null;
+    try{const r=await fetch(PROXY+encodeURIComponent(PIB_URL));if(r.ok)html=await r.text();}catch(e){}
+    if(!html){try{const r=await fetch(PIB_URL);if(r.ok)html=await r.text();}catch(e){}}
+    if(html){parseNotams(html);}
+    else{
+      setChip('red','NOTAM FETCH FAILED');
+      document.getElementById('nlist').innerHTML=`<div class="empty">⚠ NOTAM FEED UNAVAILABLE<br><br><a href="${PIB_URL}" target="_blank" class="dlink" style="color:var(--accent)">↗ VIEW NATS PIB DIRECTLY</a></div>`;
+    }
+  }
+
+  function parseCoords(txt){const pts=[],re=/(\d{6})([NS])\s*(\d{7})([EW])/g;let m;while((m=re.exec(txt))!==null){let la=+m[1].slice(0,2)+ +m[1].slice(2,4)/60+ +m[1].slice(4,6)/3600;if(m[2]==='S')la=-la;let lo=+m[3].slice(0,3)+ +m[3].slice(3,5)/60+ +m[3].slice(5,7)/3600;if(m[4]==='W')lo=-lo;pts.push([la,lo]);}return pts;}
+  function parseQGeo(q){const m=q.match(/(\d{4})([NS])(\d{5})([EW])(\d{3})$/);if(!m)return null;let la=+m[1].slice(0,2)+ +m[1].slice(2,4)/60;if(m[2]==='S')la=-la;let lo=+m[3].slice(0,3)+ +m[3].slice(3,5)/60;if(m[4]==='W')lo=-lo;return{lat:la,lng:lo,radius:+m[5]};}
+
+  // Q-code plain English decoder
+  // Format: 5-char code after Q) — chars 1-2 = subject, 3-5 = condition
+  const QCODE = {
+    // Subject codes
+    RT:'Restricted Area', RD:'Danger Area', RA:'Restricted Airspace',
+    MR:'Military Route', AX:'Air Display', AS:'Aerodrome (Status)',
+    AT:'Aerodrome (Traffic)', AU:'Airspace (Upper)', AL:'Minimum Altitude',
+    AF:'Aerodrome (Facilities)', AG:'Air-to-Ground Service', AH:'Altimeter Setting',
+    LH:'Obstacle Light', LO:'Obstacle', LB:'Beacon', LL:'Aerodrome Lighting',
+    IC:'ILS/Instrument Approach', NV:'Navigation Aid', WA:'Airshow/Display',
+    WM:'Missile/Rocket/Gun Firing', WU:'Unmanned Aircraft (UAS)', WV:'Volcanic Ash',
+    WW:'SIGMET', HX:'NOTAM Details',
+    // Condition suffix codes
+    CS:'Closed', CA:'Activated', CD:'Deactivated', CE:'Erected',
+    CN:'Cancelled', CO:'Operational', CR:'Resumed', CG:'Downgraded',
+    LC:'Limited', LZ:'Zero', TC:'Temporarily Changed', TS:'Temporarily Suspended',
+    XX:'',
+  };
+
+  function decodeQCode(qLine) {
+    // Q line format: EGTT/QRTCA/IV/BO/W/000/150/5134N00107W030
+    const parts = qLine.split('/');
+    if (parts.length < 2) return '';
+    const code = (parts[1] || '').replace(/^Q/,'').toUpperCase();
+    if (code.length < 3) return '';
+    const subj = QCODE[code.slice(0,2)] || '';
+    const cond = QCODE[code.slice(2)] || '';
+    if (!subj && !cond) return '';
+    if (subj && cond) return `${subj} — ${cond}`;
+    return subj || cond;
+  }
+
+  function parseNotams(html){
+    const doc=new DOMParser().parseFromString(html,'text/html');const notams=[];
+    doc.querySelectorAll('table tr').forEach(row=>{
+      const cells=row.querySelectorAll('td');if(cells.length<2)return;
+      const body=cells[cells.length-1].textContent.trim();
+      const idM=body.match(/([A-Z]\d{4}\/\d{2})/);if(!idM)return;
+      const id=idM[1];const qM=body.match(/Q\)\s*([^\n]+)/);const qLine=qM?qM[1].trim():'';
+      let type='warn';
+      if(/QRTCS|QRDCS|QRDCA|QRTCA|UAS|UNMANNED|DRONE/.test(body))type='uas';
+      else if(/TDA|TEMPO DANGER/.test(body))type='tda';
+      else if(/QRDXX|EGD\d/.test(body))type='danger';
+      const fromM=body.match(/FROM:\s*([^\n]+)/),toM=body.match(/TO:\s*([^\n]+)/);
+      const lowerM=body.match(/LOWER:\s*(\S+)/),upperM=body.match(/UPPER:\s*(\S+)/);
+      const lines=body.split('\n').map(l=>l.trim()).filter(l=>l&&l.length>25&&!/^Q\)|^A\)/.test(l));
+      notams.push({id,type,qLine,desc:decodeQCode(qLine),summary:lines[0]||'',from:fromM?fromM[1].trim():'',to:toM?toM[1].trim():'',lower:lowerM?lowerM[1]:'',upper:upperM?upperM[1]:'',geo:parseQGeo(qLine),poly:parseCoords(body),full:body});
+    });
+    allNotams=notams;document.getElementById('notam-count').textContent=notams.length;
+    setChip('green',`${notams.length} NOTAMs LIVE`);renderList(notams);plotNotams(notams);
+  }
+
+  function renderList(list){
+    const el=document.getElementById('nlist');
+    if(!list.length){el.innerHTML='<div class="empty">NO NOTAMs MATCH FILTER</div>';return;}
+    el.innerHTML=list.map(n=>{
+      const alt=(n.lower||n.upper)?` · ${n.lower}→${n.upper}`:'';
+      const to=n.to?` · ${n.to.substring(0,18)}`:'';
+      const descHtml=n.desc?`<div class="ndesc">${n.desc}</div>`:'';
+      return`<div class="nitem${n.id===selectedId?' sel':''}" onclick="selectNotam('${n.id}')" id="ni-${n.id.replace('/','_')}">
+        <div class="nid">${n.id}</div>
+        ${descHtml}
+        <div class="nsum">${(n.summary||'(view full text)').substring(0,90)}${(n.summary||'').length>90?'…':''}</div>
+        <div class="nmeta"><span class="nbadge b-${n.type}">${n.type.toUpperCase()}</span>${alt}${to}</div>
+      </div>`;
+    }).join('');
+  }
+
+  window.filterNotams=function(q){const t=q.toUpperCase();const f=t?allNotams.filter(n=>n.id.includes(t)||n.full.toUpperCase().includes(t)):allNotams;document.getElementById('notam-count').textContent=f.length;renderList(f);};
+
+  window.selectNotam=function(id){
+    selectedId=id;const n=allNotams.find(x=>x.id===id);if(!n)return;
+    const el=document.getElementById(`ni-${id.replace('/','_')}`);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    if(n.poly.length>=3)map.fitBounds(L.latLngBounds(n.poly),{padding:[40,40]});else if(n.geo)map.setView([n.geo.lat,n.geo.lng],11);
+    renderList(allNotams);
+  };
+
+  function plotNotams(notams){
+    AL.notams.clearLayers();
+    notams.forEach(n=>{
+      const col=n.type==='uas'?'#00e5ff':n.type==='tda'?'#ff6b35':n.type==='danger'?'#ffd700':'#aaaaaa';
+      const descLine=n.desc?`${n.desc}\n`:'';const pop=popup(n.id,`${descLine}${(n.summary||'').substring(0,200)}\n\nFrom: ${n.from}\nTo: ${n.to}\nAlt: ${n.lower}–${n.upper}`);
+      if(n.poly.length>=3)L.polygon(n.poly,{color:col,weight:2,fillColor:col,fillOpacity:.12,dashArray:'4 3'}).bindPopup(pop).addTo(AL.notams);
+      if(n.geo&&n.geo.radius>0&&n.geo.radius<300)L.circle([n.geo.lat,n.geo.lng],{radius:n.geo.radius*1852,color:col,weight:1.5,fillColor:col,fillOpacity:.09,dashArray:'3 3'}).bindPopup(pop).addTo(AL.notams);
+      if(n.geo){const icon=L.divIcon({className:'',html:`<div style="width:8px;height:8px;border-radius:50%;background:${col};border:2px solid ${col};box-shadow:0 0 5px ${col}88"></div>`,iconSize:[8,8],iconAnchor:[4,4]});L.marker([n.geo.lat,n.geo.lng],{icon}).bindPopup(pop).addTo(AL.notams);}
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LOCATE + MAP BUTTONS
+  // ═══════════════════════════════════════════════════════════════════
+  function locateMe(){
+    map.locate({setView:true,maxZoom:13});
+    map.once('locationfound',e=>{L.circleMarker(e.latlng,{radius:9,color:'#39d98a',fillColor:'#39d98a',fillOpacity:.85,weight:2}).bindPopup(popup('YOUR POSITION',`${e.latlng.lat.toFixed(5)}°N  ${e.latlng.lng.toFixed(5)}°\nAccuracy: ±${Math.round(e.accuracy)}m`)).addTo(map).openPopup();});
+    map.once('locationerror',()=>alert('Location unavailable.'));
+  }
+  window.locateMe=locateMe;
+  const btnDiv=document.createElement('div');btnDiv.className='mapbtns';
+  btnDiv.innerHTML=`<button class="mbtn" onclick="locateMe()">⊕ MY LOCATION</button><button class="mbtn" onclick="map.setView([54.5,-2.5],6)">⊡ FULL UK</button><button class="mbtn" onclick="window.open('https://nats-uk.ead-it.com/cms-nats/opencms/en/Briefing/contingency-pibs/','_blank')">↗ OFFICIAL PIB</button>`;
+  document.getElementById('map').appendChild(btnDiv);
+
+  let _hazIndTimer = null;
+  function showHazInd(t) {
+    const e = document.getElementById('haz-ind');
+    e.style.display = 'block';
+    let dots = 0;
+    if (_hazIndTimer) clearInterval(_hazIndTimer);
+    e.textContent = t;
+    _hazIndTimer = setInterval(() => {
+      dots = (dots + 1) % 4;
+      e.textContent = t.replace('…','') + '.'.repeat(dots) || t;
+    }, 400);
+  }
+  function hideHazInd() {
+    if (_hazIndTimer) { clearInterval(_hazIndTimer); _hazIndTimer = null; }
+    document.getElementById('haz-ind').style.display = 'none';
+  }
+  function loadSub(t){const e=document.getElementById('load-sub');if(e)e.textContent=t;}
+  function hideLoading(){const e=document.getElementById('loading');if(e){e.classList.add('gone');setTimeout(()=>{e.style.display='none';},500);}}
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CLOCK
+  // ═══════════════════════════════════════════════════════════════════
+  (function tick(){const d=new Date();document.getElementById('clock').textContent=[d.getUTCHours(),d.getUTCMinutes(),d.getUTCSeconds()].map(n=>String(n).padStart(2,'0')).join(':')+' UTC';setTimeout(tick,1000);})();
+
+  // ═══════════════════════════════════════════════════════════════════
+  // STARTUP
+  // ═══════════════════════════════════════════════════════════════════
+  renderZones();
+  updateWidthReadout();
+  checkZoomVisibility();
+  // Add all pre-enabled hazard layers to map and kick off initial fetch
+  Object.keys(hazToggleState).forEach(n => { if (hazToggleState[n] && HL[n]) map.addLayer(HL[n]); });
+  fetchHazards();
+  loadNatsKml(); // Load official NATS FRZ/RPZ KML in background
+  loadSub('Fetching live NOTAMs…');
+  fetchNotams().then(hideLoading);
+  setTimeout(hideLoading, 7000);
+  setInterval(fetchNotams, 30*60*1000);
+
+}); // end load
+</script>
+</body>
+</html>
