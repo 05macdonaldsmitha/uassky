@@ -216,7 +216,7 @@ aside {
 .mbtn:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Haz loading indicator — top right */
-.haz-indicator { position: absolute; top: 10px; right: 10px; z-index: 1000; font-family: var(--mono); font-size: 9px; color: var(--warn); background: rgba(10,13,15,.85); border: 1px solid rgba(255,215,0,.2); padding: 5px 10px; border-radius: 2px; letter-spacing: 1px; display: none; backdrop-filter: blur(4px); }
+.haz-indicator { position: absolute; top: 10px; right: 10px; z-index: 1000; font-family: var(--mono); font-size: 9px; color: var(--warn); background: rgba(10,13,15,.85); border: 1px solid rgba(255,215,0,.2); padding: 5px 10px; border-radius: 2px; letter-spacing: 1px; display: none; backdrop-filter: blur(4px); cursor: pointer; }
 
 /* Leaflet overrides */
 .leaflet-control-zoom { border: 1px solid var(--border)!important; border-radius: 3px!important; }
@@ -838,6 +838,7 @@ Source: OpenStreetMap contributors`;
 
     } catch(e) {
       console.error('fetchHazards error:', e.message);
+      showHazRetry();
     } finally {
       hazFetchInFlight = Math.max(0, (hazFetchInFlight || 1) - 1);
       if (!hazFetchInFlight) hideHazInd();
@@ -1248,6 +1249,18 @@ Source: OpenStreetMap contributors`;
   function hideHazInd() {
     if (_hazIndTimer) { clearInterval(_hazIndTimer); _hazIndTimer = null; }
     document.getElementById('haz-ind').style.display = 'none';
+  }
+
+  function showHazRetry() {
+    if (_hazIndTimer) { clearInterval(_hazIndTimer); _hazIndTimer = null; }
+    const e = document.getElementById('haz-ind');
+    e.textContent = '⚠ HAZARD DATA UNAVAILABLE — TAP TO RETRY';
+    e.style.display = 'block';
+    e.onclick = () => {
+      e.onclick = null;
+      tileCache.clear(); // clear cache so retry re-fetches
+      fetchHazards();
+    };
   }
   function loadSub(t){const e=document.getElementById('load-sub');if(e)e.textContent=t;}
   function hideLoading(){const e=document.getElementById('loading');if(e){e.classList.add('gone');setTimeout(()=>{e.style.display='none';},500);}}
