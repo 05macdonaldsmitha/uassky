@@ -911,30 +911,19 @@ Source: OpenStreetMap contributors`;
   async function loadNatsKml() {
     if (frzKmlLoaded) return;
     const dateStr = currentAiracDate();
-    const kmlZipUrl = `https://nats-uk.ead-it.com/cms-nats/export/sites/default/en/Publications/digital-datasets/UAS_AREA_1/EG_UAS_FR_DS_AREA1_FULL_${dateStr}_KML.zip`;
-
-    // Try multiple CORS proxies in order — allorigins struggles with binary zips
-    // and blocks file:// origins. corsproxy.io and cors.sh handle binary better.
-    const proxies = [
-      `https://corsproxy.io/?${encodeURIComponent(kmlZipUrl)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(kmlZipUrl)}`,
-      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(kmlZipUrl)}`,
-    ];
+    // Fetch from GitHub Pages repo — no proxy needed, correct CORS headers
+    // Update the zip filename here after each AIRAC cycle (every 28 days)
+    const kmlZipUrl = `https://05macdonaldsmitha.github.io/uassky/EG_UAS_FR_DS_AREA1_FULL_${dateStr}_KML.zip`;
 
     console.log(`Loading NATS FRZ KML for AIRAC ${dateStr}…`);
     let buf = null;
-    for (const url of proxies) {
-      try {
-        const res = await fetch(url);
-        if (!res.ok) { console.warn(`KML proxy failed (${res.status}): ${url}`); continue; }
-        buf = await res.arrayBuffer();
-        if (buf.byteLength > 1000) break; // got real data
-        buf = null;
-      } catch(e) { console.warn(`KML proxy error: ${url}`, e.message); }
-    }
-
-    if (!buf) {
-      console.warn('NATS KML: all proxies failed — static circles remain as fallback');
+    try {
+      const res = await fetch(kmlZipUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      buf = await res.arrayBuffer();
+      if (buf.byteLength < 1000) throw new Error('Response too small — likely an error page');
+    } catch(e) {
+      console.warn('NATS KML fetch failed — static circles remain as fallback:', e.message);
       return;
     }
 
