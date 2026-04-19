@@ -568,36 +568,33 @@ window.addEventListener('load', function initApp() {
   };
 
   // ═══════════════════════════════════════════════════════════════════
-  // OVERPASS — batched, with fallback endpoint
-  // Primary: overpass.private.coffee (no rate limit, reliable April 2026)
-  // Fallback: overpass-api.de
+  // OVERPASS — 3 endpoints, max 2 attempts, fast fail, no hammering
+  // overpass-api.de removed — 504ing consistently since April 2026
   // ═══════════════════════════════════════════════════════════════════
   const OVERPASS_ENDPOINTS = [
     'https://overpass.private.coffee/api/interpreter',
-    'https://overpass-api.de/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+    'https://overpass.openstreetmap.ru/api/interpreter',
   ];
 
-  // Direct call — no queue. fetchHazards uses generation counter to discard stale results.
-  // fetchCTRPolygons is gone (replaced by NATS KML). Keeping _overpassFetch for resilience.
-
   async function _overpassFetch(ql, attempt = 0) {
+    const MAX_ATTEMPTS = 2; // fail fast — don't hammer struggling servers
     const body = 'data=' + encodeURIComponent(ql);
     const ep = OVERPASS_ENDPOINTS[attempt % OVERPASS_ENDPOINTS.length];
-    const MAX_ATTEMPTS = 4;
     try {
       const res = await fetch(ep, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
-        signal: AbortSignal.timeout(45000)
+        signal: AbortSignal.timeout(30000) // 30s — down from 45s
       });
-      if (res.status === 429 || res.status === 503) {
-        // Rate-limited — wait and retry on next endpoint
-        const wait = Math.min(3000 * Math.pow(2, attempt), 20000);
-        console.warn(`Overpass ${ep} rate-limited, retrying in ${wait}ms…`);
-        await new Promise(r => setTimeout(r, wait));
-        if (attempt < MAX_ATTEMPTS) return _overpassFetch(ql, attempt + 1);
-        throw new Error('Overpass rate-limited on all attempts');
+      if (res.status === 429 || res.status === 503 || res.status === 504) {
+        console.warn(`Overpass ${ep} returned ${res.status}`);
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, 2000));
+          return _overpassFetch(ql, attempt + 1);
+        }
+        throw new Error(`Overpass ${res.status} on all attempts`);
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -606,8 +603,7 @@ window.addEventListener('load', function initApp() {
     } catch(e) {
       console.warn(`Overpass attempt ${attempt+1} (${ep}) failed: ${e.message}`);
       if (attempt < MAX_ATTEMPTS) {
-        const wait = Math.min(1500 * Math.pow(2, attempt), 12000);
-        await new Promise(r => setTimeout(r, wait));
+        await new Promise(r => setTimeout(r, 2000));
         return _overpassFetch(ql, attempt + 1);
       }
       throw new Error('All Overpass attempts failed');
@@ -946,6 +942,7 @@ Source: OpenStreetMap contributors`;
       parseNatsKml(kmlText);
       frzKmlLoaded = true;
       console.log('NATS FRZ KML loaded successfully');
+      renderZones(); // re-render to hide static FRZ circles now KML is loaded
     } catch(e) {
       console.warn('NATS KML parse failed:', e.message);
     }
@@ -1007,8 +1004,9 @@ Source: OpenStreetMap contributors`;
           if (!zoneObjs[key]) {
             const s = ZONE_STYLE[type];
             // FRZ circles are shown faintly as fallback until KML loads, then stay as guide
-            const fallbackOp = (type === 'frz' && frzKmlLoaded) ? 0.04 : s.fillOpacity;
-            zoneObjs[key] = L.circle([lat,lng],{radius:r,color:s.color,weight:s.weight,fillColor:s.fillColor,fillOpacity:fallbackOp,dashArray:s.dashArray})
+            // Hide FRZ circles entirely once KML polygons are loaded
+            if (type === 'frz' && frzKmlLoaded) return;
+            zoneObjs[key] = L.circle([lat,lng],{radius:r,color:s.color,weight:s.weight,fillColor:s.fillColor,fillOpacity:s.fillOpacity,dashArray:s.dashArray})
               .bindPopup(popup(`${type.toUpperCase()}: ${name}`, ZONE_DESC[type](name,r)));
           }
           if (!AL[type].hasLayer(zoneObjs[key])) AL[type].addLayer(zoneObjs[key]);
